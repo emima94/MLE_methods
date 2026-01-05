@@ -1,0 +1,56 @@
+% Description of models 
+\subsection{2D model: The RmA predator-prey model}
+\begin{frame}
+    \frametitle{2D model: The RmA predator-prey model}
+    \textit{The stochastic Rosenzweig-MacArthur (RmA) model:}
+
+    \begin{align}
+        dN &= rN\left(1-\frac{N}{K}\right)\,dt - \frac{\beta N P}{1+ N \frac{\beta}{C_{max}}} \,dt + \sigma_N N\,dB_N(t), \\
+        dP &= \varepsilon  \frac{\beta N P}{1+ N \frac{\beta}{C_{max}}}\,dt - \mu P\,dt + \sigma_P P\,dB_P(t),
+    \end{align}
+    where
+    \begin{columns}
+        \column{0.5\textwidth}
+        \begin{align*}
+            &N &&\text{prey population size}, \\
+            &P &&\text{predator population size}, \\
+            &r &&\text{specific growth rate, prey}, \\
+            &K &&\text{prey carrying capacity}, \\
+            &\beta &&\text{? not consistent with "Inference.." paper}, 
+        \end{align*}
+        \column{0.5\textwidth}
+        \begin{align*}
+            &C_{max} &&\text{maximum consumption rate, predator}, \\
+            &\varepsilon &&\text{conversion efficiency}, \\
+            &\mu &&\text{predator mortality rate}, \\
+            &\sigma_N, \sigma_P &&\text{process noise intensities}, \\
+            &W_N(t), W_P(t) &&\text{independent Wiener processes}.
+        \end{align*}
+    \end{columns}
+    
+
+\end{frame}
+
+\begin{frame}
+    \frametitle{2D model: The RmA predator-prey model}
+    Parameters used for simulating data:
+    \begin{table}[]
+        \centering
+        \begin{tabular}{l l l l l l}
+            \toprule
+            Parameter & Description & True value & Init. & Est. Laplace & Est. EKF \\
+            \midrule
+            $N_0$ & initial prey population size & 0.5 \\
+            $P_0$ & initial predator population size & 0.5 \\
+            $r$ & specific growth rate, prey & 1.0 \\
+            $K$ & prey carrying capacity & 1.0 \\
+            $\beta$ & ? not consistent with "Inference.." paper & 3.0 \\
+            $C_{max}$ & maximum consumption rate, predator & 1.0 \\
+            $\varepsilon$ & conversion efficiency & 3.0 \\
+            $\mu$ & predator mortality rate & 1.0 \\
+            $\sigma_N$ & process noise intensity, prey & 0.2 \\
+            $\sigma_P$ & process noise intensity, predator & 0.1 \\
+            \bottomrule
+        \end{tabular}
+    \end{table}
+\end{frame}
