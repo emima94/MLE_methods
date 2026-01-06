@@ -4,31 +4,121 @@
     \frametitle{2D model: The RmA predator-prey model}
     \textit{The stochastic Rosenzweig-MacArthur (RmA) model:}
 
-    \begin{align}
-        dN &= rN\left(1-\frac{N}{K}\right)\,dt - \frac{\beta N P}{1+ N \frac{\beta}{C_{max}}} \,dt + \sigma_N N\,dB_N(t), \\
-        dP &= \varepsilon  \frac{\beta N P}{1+ N \frac{\beta}{C_{max}}}\,dt - \mu P\,dt + \sigma_P P\,dB_P(t),
-    \end{align}
-    where
+    \vspace{1cm}
+    System equations:
+    \begin{subequations}
+        \begin{align}
+            dN &= rN\left(1-\frac{N}{K}\right)\,dt - \frac{\beta N P}{1+ N \frac{\beta}{C_{max}}} \,dt + \sigma_N N\,dB_N(t), \\
+            dP &= \varepsilon  \frac{\beta N P}{1+ N \frac{\beta}{C_{max}}}\,dt - \mu P\,dt + \sigma_P P\,dB_P(t),
+        \end{align}
+     \end{subequations}
+     In general form:
+    \begin{subequations}
+        \begin{align}
+            dN &= f_N(N,\theta)\,dt + g_N(N,\theta)\,dB_N(t), \\
+            dP &= f_P(P,\theta)\,dt + g_P(P,\theta)\,dB_P(t),
+        \end{align}
+    \end{subequations}
+    Observation equation (only prey observed):
+    \begin{subequations}
+        \begin{align}
+            Y(t) &= N(t) + e(t), \quad e(t) \sim \mathcal{N}(0, \sigma_{y}^2).
+            %Y_P(t) &= P(t) + e_P(t), \quad e_P(t) \sim \mathcal{N}(0, \sigma_{y,P}^2).
+        \end{align}
+    \end{subequations}
+    
+
+\end{frame}
+
+\begin{frame}
+    \frametitle{2D model: The RmA predator-prey model}
+    In transformed coordinates:
+    \begin{align*}
+        X_1 &= \log(N), \quad X_2 = \log(P) 
+    \end{align*}
+    By It\^o's lemma, the system equations become:
+    \begin{subequations}
+        \begin{align}
+            dX_1 &= h'_N f_N\,dt + \frac{1}{2} h''_N g_N^2\,dt + h'_N g_N\,dB_N(t), \\
+            dX_2 &= h'_P f_P\,dt + \frac{1}{2} h''_P g_P^2\,dt + h'_P g_P\,dB_P(t),    
+        \end{align}
+    \end{subequations}
+    where 
+    \begin{subequations}
+        \begin{align}
+            h'_N &= \frac{1}{N}, \quad h''_N = -\frac{1}{N^2}, \\
+            h'_P &= \frac{1}{P}, \quad h''_P = -\frac{1}{P^2},
+        \end{align}
+    \end{subequations}
+    which results in state-independent diffusion terms.
+\end{frame}
+
+\begin{frame}
+    \frametitle{2D model: The RmA predator-prey model}
+    Description of variables:
     \begin{columns}
-        \column{0.5\textwidth}
+        \column{1\textwidth}
         \begin{align*}
             &N &&\text{prey population size}, \\
             &P &&\text{predator population size}, \\
             &r &&\text{specific growth rate, prey}, \\
             &K &&\text{prey carrying capacity}, \\
-            &\beta &&\text{? not consistent with "Inference.." paper}, 
-        \end{align*}
-        \column{0.5\textwidth}
-        \begin{align*}
+            &\beta &&\text{? not consistent with "Inference.." paper}, \\
             &C_{max} &&\text{maximum consumption rate, predator}, \\
             &\varepsilon &&\text{conversion efficiency}, \\
             &\mu &&\text{predator mortality rate}, \\
             &\sigma_N, \sigma_P &&\text{process noise intensities}, \\
-            &W_N(t), W_P(t) &&\text{independent Wiener processes}.
+            &B_N(t), B_P(t) &&\text{independent Wiener processes}.
         \end{align*}
     \end{columns}
     
 
+\end{frame}
+
+\begin{frame}
+    \frametitle{2D model: The RmA predator-prey model}
+    Generation of simulated data:
+    \begin{columns}
+        \column{0.3\textwidth}
+        \begin{table}[]
+            \centering
+            \begin{tabular}{l l}
+                \toprule
+                $N_0$ & 0.1 \\
+                $P_0$ & 0.1 \\
+                $r$ & 1.0 \\
+                $K$ & 1.0 \\
+                $\beta$ & 3.0 \\
+                $C_{max}$ & 1.0 \\
+                $\varepsilon$ & 3.0 \\
+                $\mu$ & 1.0 \\
+                $\sigma_N$ & 0.2 \\
+                $\sigma_P$ & 0.1 \\
+                \bottomrule
+            \end{tabular}
+            \caption{True parameter values}            
+        \end{table}
+
+        \column{0.7\textwidth}
+
+       \begin{figure}[htbp]
+        \centering
+        \begin{subfigure}[b]{\textwidth}
+            \centering
+            \includegraphics[width=\textwidth]{../figures/RmA-sim-obs_prey.pdf}
+            \caption{Prey population with Gaussian observations}
+        \end{subfigure}
+        \\
+        \vspace{-4mm}
+        \begin{subfigure}[b]{\textwidth}
+            \centering
+            \includegraphics[width=\textwidth]{../figures/RmA-sim-obs_predator.pdf}
+            \caption{Predator population (not observed)}
+        \end{subfigure}
+    \end{figure}
+
+    \end{columns}
+    
 \end{frame}
 
 \begin{frame}
