@@ -8,12 +8,16 @@ set.seed(123456)
 
 # Source all functions in src/
 sofun <- function() {
-    src_files <- list.files("src",pattern="*.R",full.names=TRUE)
+    src_files <- list.files("src/RmA",pattern="*.R",full.names=TRUE)
     for (f in src_files) {
         source(f)
     }
 }
 sofun()
+
+source("src/plots.R")
+
+
 #### Generate data ####
 ## Simulation control
 dt <- 0.1
