@@ -3,8 +3,12 @@
 require(SDEtools)
 require(ctsmTMB)
 require(RTMB)
+library(future)
+library(future.apply)
 
 set.seed(123456)
+
+#plan(multicore) # use multicore processing
 
 # Source all functions in src/
 sofun <- function() {
@@ -16,6 +20,9 @@ sofun <- function() {
 sofun()
 
 source("src/plots.R")
+source("src/generate_data.R")
+source("src/fit_model.R")
+source("src/compute_coverage.R")
 
 #### Generate data ####
 
@@ -28,41 +35,25 @@ dt <- 0.1
 t <- seq(0,T,dt)
 
 # Number of datasets to simulate
-N <- 20
+N <- 40
 
+x0_bar = 0.3
 P0 <- 0.1
-x0 <- rnorm(N, 0.3, P0)
+x0 <- rnorm(N, x0_bar, P0)
 
 # True parameters
 p0 <- list(
     theta = 0.2,
     mu = 0.5,
-    sigma = 0.1,
+    sigma = 0.2,
     obs_sd = 0.02
 )
 
-# Gaussian observations
-n <- length(t)
-tsample <- 1 # 5 
-iobs <- round(seq(1,n,tsample/dt))
+sim_data <- generate_data(fsim, gsim, t, x0, p0, dt, N)
+Xsim <- sim_data$Xsim
+Ysim <- sim_data$Ysim
+iobs <- sim_data$iobs
 
-
-## Simulate using Euler-Maruyama
-Xsim <- matrix(0, nrow=length(t), ncol=N)
-Xsim
-Ysim <- matrix(0, nrow=length(iobs), ncol=N)
-Ysim
-
-for (i in 1:N) {
-    B <- rBM(t)
-
-    sim <- euler(function(x)fsim(x,p0),
-                function(x)gsim(x,p0),
-                t,x0[i],B=B)
-    Xsim[,i] = sim$X
-
-    Ysim[,i] = Xsim[iobs,i] + rnorm(length(iobs),0,p0$obs_sd) 
-}
 matplot(t, Xsim,
         type = "l",
         lty = 1,
@@ -75,62 +66,138 @@ matplot(t, Xsim,
 #### Fit models ####
 # Get ctsmTMB model
 sofun()
-model <- create_OU_model(obs_sd = p0$obs_sd, x0 = x0, p0 = P0)
+model <- create_OU_model(obs_sd = p0$obs_sd, x0 = x0_bar, p0 = P0)
 
-# fit to each dataset
+par_names <- rownames(model$getParameters(type = "free"))
+n_par <- length(par_names)
 
-fit_EKF <- vector("list", N)
+# fit to each dataset with each method
+methods <- c("ekf", "laplace", "laplace2")
 
-for (i in 1:N) {
-    print(paste("Fitting dataset ", i, " of ", N, sep=""))
+# Test over a range of noise lvls:
+sigma_vals <- c(0.05, 0.1, 0.2)
+fit_sigma <- vector("list", length(sigma_vals))
+names(fit_sigma) <- paste0("sigma_", sigma_vals)
 
-    df <- data.frame(
-        t = t[iobs],
-        Y = Ysim[,i]
-    )
+for (sigma_val in sigma_vals) {
 
-    fit_EKF[[i]] <- model$estimate(
-        data = df,
-        method = "ekf",
-        ode.solver = "rk4",
-        ode.timestep = dt,
-        silent = TRUE
-    )
+    message("Fitting for sigma = ", sigma_val, sep="")
+    p0$sigma <- sigma_val
 
+    sim_data <- generate_data(fsim, gsim, t, x0, p0, dt, N)
+    Ysim <- sim_data$Ysim
+    iobs <- sim_data$iobs
+    fit_sigma[[paste0("sigma_", sigma_val)]] <- fit_model(methods, model, t, Ysim, iobs, dt, N)
 }
 
-# Plot distribution of parameter estimates
-theta_est <- sapply(fit_EKF, function(fit) fit$par.fixed["theta"])
-mu_est <- sapply(fit_EKF, function(fit) fit$par.fixed["mu"])
-sigma_est <- sapply(fit_EKF, function(fit) fit$par.fixed["sigma"])
+# Summarize fits
+metric_names <- c("coverage", "bias", "rmse")
 
-par(mfrow=c(3,1))
-hist(theta_est, main=expression("Estimates of " ~ theta), xlab=expression(theta))
-abline(v=p0$theta, col="red", lwd=2)
-hist(mu_est, main=expression("Estimates of " ~ mu), xlab=expression(mu))
-abline(v=p0$mu, col="red", lwd=2)
-hist(sigma_est, main=expression("Estimates of " ~ sigma), xlab=expression(sigma))
-abline(v=p0$sigma, col="red", lwd=2)
+fit_summary_sigma <- vector("list", length(sigma_vals))
+names(fit_summary_sigma) <- names(fit_sigma)
+for (sigma_val in sigma_vals) {
+    fit <- fit_sigma[[paste0("sigma_", sigma_val)]]
+    fit_summary <- vector("list", length(methods))
+    names(fit_summary) <- methods
+    for (m in methods) {
 
+        par_est_m <- matrix(0, nrow=N, ncol=n_par)
+        colnames(par_est_m) <- par_names
 
-fit_EKF$nll
-fit_EKF
+        par_se_m <- matrix(0, nrow=N, ncol=n_par)
+        colnames(par_se_m) <- par_names
 
-fit_laplace_X <- model$estimate(
-    data = df,
-    method = "laplace",
-    ode.timestep = dt
-)
+        for (par in par_names) {
+            par_est_m[,par] <- sapply(fit[[m]], function(x) x$par.fixed[par])
+            par_se_m[,par] <- sapply(fit[[m]], function(x) sqrt(x$cov.fixed[par,par]))
+        }
 
-fit_laplace_X$nll
-fit_laplace_X
-fit_laplace_XdB <- model$estimate(
-    data = df,
-    method = "laplace2",
-    ode.timestep = dt
-)
-fit_laplace_XdB$nll
-fit_laplace_XdB
+        # Performance metrics for method m: coverage, bias, rmse, store as a named matrix
+        perf_metric_m <- matrix(0, nrow=n_par, ncol=3)
+        rownames(perf_metric_m) <- par_names
+        colnames(perf_metric_m) <- metric_names
+        for (par in par_names) {
+            ## Compute coverage
+            perf_metric_m[par,"coverage"] <- compute_coverage(
+                estimates = par_est_m[,par],
+                ses = par_se_m[,par],
+                true_value = p0[[par]],
+                alpha = 0.05
+            )
+            ## Compute bias and RMSE
+            perf_metric_m[par,"bias"] <- mean(par_est_m[,par] - p0[[par]])
+            perf_metric_m[par,"rmse"] <- sqrt(mean((par_est_m[,par] - p0[[par]])^2))
+        }
+        
+        fit_summary[[m]] <- list(est = par_est_m, se = par_se_m, perf = perf_metric_m)
+    }
+    fit_summary_sigma[[paste0("sigma_", sigma_val)]] <- fit_summary
+}
+# Plot metric vs noise level for each method for all parameters
+ylims <- list(c(0,1), c(-0.2,0.2), c(0,0.3))
+names(ylims) <- metric_names
+plot_metric <- function(metric_name) {
+    par(mfrow = c(n_par, 1))
+
+    cols <- seq_along(methods)  # consistent colors
+
+    for (par in par_names) {
+
+        plot(sigma_vals,
+             sapply(sigma_vals, function(sigma_val)
+                 fit_summary_sigma[[paste0("sigma_", sigma_val)]][[methods[1]]]$perf[par, metric_name]),
+             type = "b",
+             col  = cols[1],
+             ylim = ylims[[metric_name]],
+             xlab = "Sigma",
+             ylab = metric_name,
+             main = paste("Parameter:", par))
+
+        for (m in methods[-1]) {
+            points(sigma_vals,
+                   sapply(sigma_vals, function(sigma_val)
+                       fit_summary_sigma[[paste0("sigma_", sigma_val)]][[m]]$perf[par, metric_name]),
+                   type = "b",
+                   col  = cols[methods == m])
+        }
+
+        legend("topright",
+               legend = methods,
+               col    = cols,
+               lty    = 1,
+               pch    = 1,
+               bty    = "n")
+    }
+}
+plot_metric("coverage")
+plot_metric("bias")
+plot_metric("rmse")
+# For a given noise level, show parameter estimate distributions
+sigma_val <- 0.05
+fit_summary <- fit_summary_sigma[[paste0("sigma_", sigma_val)]]
+# Plot distribution of parameter estimates for every method for every parameter (n_par x n_methods plots)
+par(mfrow=c(n_par, length(methods)))
+for (par in par_names) {
+    for (m in methods) {
+        hist(fit_summary[[m]]$est[,par],
+             main = paste("Estimates of ", par, " (", m, ")", sep=""),
+             xlab = par)
+        abline(v = p0[[par]], col="red", lwd=2)
+    }
+}
+# Plot distribution of standard errors for every method for every parameter (n_par x n_methods plots)
+par(mfrow=c(n_par, length(methods)))
+for (par in par_names) {
+    for (m in methods) {
+        hist(fit_summary[[m]]$se[,par],
+             main = paste("SE of ", par, " (", m, ")", sep=""),
+             xlab = par)
+    }
+}
+
+fit_summary$ekf$perf
+fit_summary$laplace$perf
+fit_summary$laplace2$perf
 
 
 
