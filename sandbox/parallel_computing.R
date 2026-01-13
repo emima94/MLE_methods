@@ -26,24 +26,21 @@ time_seq <- system.time({
   result_seq <- lapply(input, square)
 })
 
-result_seq
-time_seq
-
 cl <- makeCluster(6)
 time_par <- system.time({
   result_par <- parLapply(cl, input, square)
 })
 stopCluster(cl)
 
-result_par
-time_par
-
-
 # Make an overview of computation times
 time_summary <- data.frame(
   Method = c("Sequential", "Parallel"),
   UserTime = c(time_seq["user.self"], time_par["user.self"]),
-  SysTime = c(time_seq["sys.self"], time_par["sys.self"]),
+  SysTime = c(time_seq["sys.self"], tßime_par["sys.self"]),
   ElapsedTime = c(time_seq["elapsed"], time_par["elapsed"])
 )
 print(time_summary)
+
+# Save results to a file
+saveRDS(list(sequential = result_seq, parallel = result_par), 
+    file = "results/parallel_computing_results.rds")
