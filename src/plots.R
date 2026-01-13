@@ -29,3 +29,39 @@ plot_RmA_sim_obs <- function(t, Nsim, Psim, iobs, YN_gauss) {
     dev.off()
 
 }
+
+
+plot_metric <- function(metric_name, fit_summary, vals, xlab, ylims, methods, par_names) {
+    n_par <- length(par_names)
+    par(mfrow = c(n_par, 1))
+
+    cols <- seq_along(methods)  # consistent colors
+
+    for (par in par_names) {
+
+        plot(vals,
+             sapply(vals, function(val)
+                 fit_summary[[paste0(xlab, "_", val)]][[methods[1]]]$perf[par, metric_name]),
+             type = "b",
+             col  = cols[1],
+             ylim = ylims[[metric_name]],
+             xlab = xlab,
+             ylab = metric_name,
+             main = paste("Parameter:", par))
+
+        for (m in methods[-1]) {
+            points(vals,
+                   sapply(vals, function(val)
+                       fit_summary[[paste0(xlab, "_", val)]][[m]]$perf[par, metric_name]),
+                   type = "b",
+                   col  = cols[methods == m])
+        }
+
+        legend("topright",
+               legend = methods,
+               col    = cols,
+               lty    = 1,
+               pch    = 1,
+               bty    = "n")
+    }
+}

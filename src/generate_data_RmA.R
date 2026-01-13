@@ -1,6 +1,6 @@
 ## Generate data
 
-generate_data <- function(fsim, gsim, hsim, t, x0, p0, dt, N) {
+generate_data_RmA <- function(fsim, gsim, hsim, t, x0, p0, dt, N) {
 
     # Gaussian observations
     n <- length(t)
@@ -25,8 +25,9 @@ generate_data <- function(fsim, gsim, hsim, t, x0, p0, dt, N) {
                     t,x0[i,],B=B)
 
         Xsim[[i]] = sim$X
-        Ysim[[i]] = matrix(hsim(Xsim[[i]][iobs,], p0) 
-                       + rnorm(length(iobs) * ny,0,p0$obs_sd), 
+        Ysim[[i]] = matrix(pmax(0,
+                       hsim(Xsim[[i]][iobs,], p0) 
+                       + rnorm(length(iobs),0,p0$obs_sd)), 
                        nrow=length(iobs), ncol=ny)
         # Poisson observations
         # Nsim[[i]] = exp(Xsim[[i]][,1])

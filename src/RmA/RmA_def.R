@@ -1,12 +1,11 @@
 
 ## RmA/Bazykin-model (2D model) in natural coordinates
-fN <- function(n,p,par=p0) with(par,r*n*(1-n/K) - beta*n*p/(1+beta*n/Cmax))
-fP <- function(n,p,par=p0) with(par,epsilon*beta*n*p/(1+beta*n/Cmax) - mu*p)
+fN <- function(n,p,par=p0) with(par,exp(log_r)*n*(1-n/exp(log_K)) - exp(log_beta)*n*p/(1+exp(log_beta)*n/Cmax))
+fP <- function(n,p,par=p0) with(par,epsilon * exp(log_beta)*n*p/(1+exp(log_beta)*n/Cmax) - exp(log_mu)*p)
 
 
-gN <- function(n,par=p0) with(par,sN*n) 
-gP <- function(p,par=p0) with(par,sP*p) 
-
+gN <- function(n,par=p0) with(par,exp(log_sN)*n) 
+gP <- function(p,par=p0) with(par,exp(log_sP)*p) 
 ## In transformed coordinates X=h(N), Y=h(P)
 h <- log
 hi <- exp
@@ -25,3 +24,4 @@ gY <- function(y,par=p0) with(par,gP(hi(y),par)*hd(hi(y)))
 ## The model for simulation: dX = f(X)*dt + g(X)*dB, X=(log N,logP)
 fsim <- function(x,par=p0) c(fX(x[1],x[2],par),fY(x[1],x[2],par))
 gsim <- function(x,par=p0) diag(c(gX(x[1],par),gY(x[2],par)))
+hsim <- function(x,par=p0) exp(x[,1])  # observe N only
