@@ -16,7 +16,7 @@ echo "renv status:"
 Rscript -e "renv::status()"
 
 echo "Restoring R environment (installs all R package dependencies)..."
-Rscript -e "renv::restore(prompt = FALSE)"
+Rscript -e "renv::restore(exclude = "systemfonts", prompt = FALSE)"
 
 echo "R environment restored."
 echo "renv status after restore:"
