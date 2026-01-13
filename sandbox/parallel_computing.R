@@ -36,7 +36,7 @@ stopCluster(cl)
 time_summary <- data.frame(
   Method = c("Sequential", "Parallel"),
   UserTime = c(time_seq["user.self"], time_par["user.self"]),
-  SysTime = c(time_seq["sys.self"], tßime_par["sys.self"]),
+  SysTime = c(time_seq["sys.self"], time_par["sys.self"]),
   ElapsedTime = c(time_seq["elapsed"], time_par["elapsed"])
 )
 print(time_summary)
