@@ -23,7 +23,7 @@ bsub -J $job_name \
     -R "rusage[mem=${ram_per_core}GB]" \
     -W ${walltime} \
     -R "select[model == ${model}]" \
-    job1.sub
+    hpc/job1.sub
 
 
 
