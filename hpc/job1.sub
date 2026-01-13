@@ -9,18 +9,8 @@ module load R/4.4.1-mkl2024update1
 echo "Using R version:"
 R --version
 
-echo "Installing renv package if not already installed..."
-Rscript -e "if (!requireNamespace('renv', quietly = TRUE)) install.packages('renv')"
-
-echo "renv status:"
-Rscript -e "renv::status()"
-
-echo "Restoring R environment (installs all R package dependencies)..."
-Rscript -e "renv::restore(exclude = "systemfonts", prompt = FALSE)"
-
-echo "R environment restored."
-echo "renv status after restore:"
-Rscript -e "renv::status()"
+echo "Install reqiuired packages..."
+Rscript -e "install.packages(c('ctsmTMB'))"
 
 echo "Running R driver script..."
 Rscript sandbox/parallel_computing.R
