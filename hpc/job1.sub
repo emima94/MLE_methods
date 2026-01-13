@@ -5,6 +5,7 @@ echo "Working directory: $(pwd)"
 
 # Unload and load necessary modules
 module load R/4.4.1-mkl2024update1  
+module load freetype
 
 echo "Using R version:"
 R --version
