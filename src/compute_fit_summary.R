@@ -18,13 +18,13 @@ compute_fit_summary <- function(fit, p0, methods, n_par, par_names, metric_names
                 x <- fit[[m]][[i]]$fit  
 
                 par_est_m[i,par] <- if (is.null(x)) {
-                    NA
+                    NaN
                 } else {
                     x$par.fixed[par]
                 }
 
                 par_se_m[i,par] <- if (is.null(x)) {
-                    NA
+                    NaN
                 } else {
                     cov <- x$cov.fixed
                     colnames(cov) <- rownames(cov) <- par_names
@@ -32,7 +32,7 @@ compute_fit_summary <- function(fit, p0, methods, n_par, par_names, metric_names
                     
 
                     if (is.na(v) || !is.finite(v) || v < 0) {
-                        NA
+                        NaN
                     } else {
                         sqrt(v)
                     }

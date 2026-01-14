@@ -18,6 +18,8 @@ generate_data <- function(fsim, gsim, hsim, t, x0, p0, dt, N) {
     Ysim <- vector("list", N)
 
     for (i in 1:N) {
+
+        
         B <- rvBM(t, nx)
 
         sim <- euler(function(x)fsim(x,p0),

@@ -21,6 +21,7 @@ sofun()
 
 source("src/plots.R")
 source("src/generate_data.R")
+source("src/generate_data_RmA.R")
 source("src/fit_model.R")
 source("src/compute_coverage.R")
 source("src/compute_fit_summary.R")
@@ -155,12 +156,13 @@ for (sigma_val in sigma_vals) {
 }
 
 # Save fits with date and time in file name
-filename <- paste0("results/RmA_fits_sigma_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".rds")
-saveRDS(fit_sigma, file=filename)
+#filename <- paste0("results/RmA_fits_sigma_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".rds")
+#saveRDS(fit_sigma, file=filename)
 
-#fit_sigma <- readRDS("results/RmA_fits_sigma.rds")
+fit_sigma <- readRDS("results/RmA_fits_sigma_20260113_092925.rds")
 
 fit_sigma[[1]]$ekf[[1]]
+
 
 
 # Summarize fits
@@ -191,9 +193,11 @@ compute_convergence <- function(fit_sigma, sigma_vals, methods, N) {
 
     for (i in 1:length(sigma_vals)) {
         sigma_val <- sigma_vals[i]
-        fit_i <- fit_sigma[[paste0("sigma_", sigma_val)]]
+        fit_i <- fit_sigma[[i]]
         for (m in methods) {
-            convergence[i,m] <- sum(!sapply(fit_i[[m]], is.null))/N
+            convergence[i,m] <- sum(sapply(fit_i[[m]], function(fit) {
+                !is.null(fit$fit)
+            }))/N
         }
         
     }
@@ -204,7 +208,7 @@ convergence <- compute_convergence(fit_sigma, sigma_vals, methods, N)
 convergence
 
 # Plot metric vs noise level for each method for all parameters
-ylims <- list(c(0,1), c(-0.2,0.2), c(0,2))
+ylims <- list(c(0,1), c(-0.2,0.2), c(0,0.5))
 names(ylims) <- metric_names
 
 # Plot metrics vs noise level
@@ -212,22 +216,36 @@ plot_metric("coverage", fit_summary_sigma, sigma_vals, "sigma", ylims, methods, 
 plot_metric("bias", fit_summary_sigma, sigma_vals, "sigma", ylims, methods, par_names)
 plot_metric("rmse", fit_summary_sigma, sigma_vals, "sigma", ylims, methods, par_names)
 
+fit_sigma[[1]]$ekf[[3]]$fit
+
+# Computation time summary
+for (i in 1:length(sigma_vals)) {
+    sigma_val <- sigma_vals[i]
+    fit_i <- fit_sigma[[paste0("sigma_", sigma_val)]]
+    for (m in methods) {
+        times <- sapply(fit_i[[m]], function(fit) {
+            fit$time
+        })
+        comp_time[i,m] <- mean(times, na.rm=TRUE)
+    }
+}
+comp_time
+
 # For a given noise level, show parameter estimate distributions
-sigma_val <- sigma_vals[1]
+sigma_val <- sigma_vals[4]
 p0_k <- p0
 p0_k$log_sN <- sigma_val
 fit_summary <- fit_summary_sigma[[paste0("sigma_", sigma_val)]]
 
 # Plot distribution of parameter estimates for every method for every parameter (n_par x n_methods plots)
-n_par_plot <- c(1,2,3,4,5,6)
+n_par_plot <- c(1,2,3,4,5)
 # Define xlims for parameters in histograms
 xlims <- list(
     log_r = c(-2,2),
     log_K = c(-2,2),
     log_beta = c(-2,6),
     log_mu = c(-2,3),
-    log_sN = c(-15,1),
-    log_sP = c(-4,1)
+    log_sN = c(-3,0)
 )
 par(mfrow=c(length(n_par_plot), length(methods)))
 for (par in par_names[n_par_plot]) {
@@ -250,21 +268,33 @@ for (par in par_names) {
     }
 }
 
+#### Test different lengths of time series ####
+N <- 100
+dt <- 0.1
+x0_bar = c(0.5, 0.5)
+P0 <- diag(c(0.01,0.01))
+x0 <- log(matrix(rnorm(N * length(x0_bar), x0_bar, diag(sqrt(P0))), nrow=N, ncol=length(x0_bar)))
+
+methods <- c("ekf", "laplace", "laplace.thygesen")
+
 # Test different lengths of time series
 T_vals <- c(20, 50, 100, 200)
 fit_T <- vector("list", length(T_vals))
 names(fit_T) <- paste0("T_", T_vals)
-
 for (T_val in T_vals) {
 
     message("Fitting for T = ", T_val, sep="")
     t <- seq(0,T_val,dt)
 
-    sim_data <- generate_data(fsim, gsim, t, x0, p0, dt, N)
+    sim_data <- generate_data_RmA(fsim, gsim, hsim, t, x0, p0, dt, N)
     Ysim <- sim_data$Ysim
     iobs <- sim_data$iobs
     fit_T[[paste0("T_", T_val)]] <- fit_model(methods, model, t, Ysim, iobs, dt, N)
 }
+
+# Save fits with date and time in file name
+filename_T <- paste0("results/RmA_fits_T_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".rds")
+saveRDS(fit_T, file=filename_T)
 
 # Summarize fits
 fit_summary_T <- vector("list", length(T_vals))
@@ -279,7 +309,36 @@ for (T_val in T_vals) {
 }
 fit_summary_T
 
+fit_T
  
+ylims <- list(c(0,1), c(-0.2,0.2), c(0,0.5))
+names(ylims) <- metric_names
 plot_metric("coverage", fit_summary_T, T_vals, "T", ylims, methods, par_names)
 plot_metric("bias", fit_summary_T, T_vals, "T", ylims, methods, par_names)
 plot_metric("rmse", fit_summary_T, T_vals, "T", ylims, methods, par_names)
+
+
+# For a given time length, show parameter estimate distributions
+T_val <- T_vals[1]
+fit_summary <- fit_summary_T[[paste0("T_", T_val)]]
+
+# Plot distribution of parameter estimates for every method for every parameter (n_par x n_methods plots)
+n_par_plot <- c(1,2,3,4,5)
+# Define xlims for parameters in histograms
+xlims <- list(
+    log_r = c(-2,2),
+    log_K = c(-2,2),
+    log_beta = c(-2,6),
+    log_mu = c(-2,3),
+    log_sN = c(-3,0)
+)
+par(mfrow=c(length(n_par_plot), length(methods)))
+for (par in par_names[n_par_plot]) {
+    for (m in methods) {
+        hist(fit_summary[[m]]$est[,par],
+             main = paste("Estimates of ", par, " (", m, ")", sep=""),
+             xlab = par,
+             xlim = xlims[[par]])
+        abline(v = p0[[par]], col="red", lwd=2)
+    }
+}

@@ -45,3 +45,52 @@ fit_model <- function(methods, model, t, Ysim, iobs, dt, N, df_fun = NULL) {
   
   return(fit)
 }
+
+
+# Fit model in parallel
+fit_model_par <- function(n_clusters, methods, model, t, Ysim, iobs, dt, N, df_fun = NULL) {
+
+  cl <- makeCluster(n_clusters)
+
+  # Export functions and variables to cluster
+  clusterExport(
+      cl,
+      varlist = c("model", "methods", "t", "Ysim", "iobs", "dt", "N", "df_fun_HeatEq"),
+      envir = environment()
+  )
+
+  fit_par <- vector("list", length(methods))
+  names(fit_par) <- methods
+  for (m in methods) {
+      message("Fitting method: ", m)
+      
+      clusterExport(cl, varlist = c("m"), envir = environment())
+
+      fit_sub <- parLapply(cl, 1:N, function(i) {
+        
+        df <- df_fun_HeatEq(t, Ysim[[i]], iobs)
+        
+        timing <- system.time({
+          res <- model$estimate(
+            data = df,
+            method = m,
+            ode.solver = "rk4",
+            ode.timestep = dt,
+            silent = TRUE,
+            control = list(trace = 0),
+            laplace.residuals = TRUE
+          )
+        })
+        
+        list(
+          fit = res,
+          time = timing["elapsed"]
+        )
+      })
+      fit_par[[m]] <- fit_sub
+  }
+
+  stopCluster(cl)
+
+  return(fit_par)
+}

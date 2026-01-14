@@ -24,6 +24,7 @@ source("src/generate_data.R")
 source("src/fit_model.R")
 source("src/compute_coverage.R")
 source("src/compute_fit_summary.R")
+source("src/util.R")
 
 #### Generate data ####
 
@@ -33,7 +34,7 @@ dt <- 0.1
 t <- seq(0,T,dt)
 
 # Number of datasets to simulate
-N <- 5
+N <- 20
 
 # Number of spatial finite volumes
 Nx <- 10
@@ -64,9 +65,9 @@ Ysim <- sim_data$Ysim
 iobs <- sim_data$iobs
 
 # Plot simulated data
-k <- 2
-matplot(t, Xsim[[k]], type="l")
-matpoints(t[iobs], Ysim[[k]], col="red", pch=1)
+#k <- 2
+#matplot(t, Xsim[[k]], type="l")
+#matpoints(t[iobs], Ysim[[k]], col="red", pch=1)
 
 # Fit model to data
 model <- create_HeatEq_model(
@@ -83,20 +84,38 @@ model <- create_HeatEq_model(
 par_names <- rownames(model$getParameters(type = "free"))
 n_par <- length(par_names)
 
-methods = c("ekf", "laplace", "laplace2")
-
-fit <- fit_model(methods, model, t, Ysim, iobs, dt, N, df_fun_HeatEq)
+methods = c("ekf", "laplace", "laplace.thygesen")
 
 metric_names <- c("coverage", "bias", "rmse")
 source("src/compute_fit_summary.R")
-fit_summary <- compute_fit_summary(fit, p0, methods, n_par, par_names, metric_names)
+source("src/util.R")
+
+# Test parallel par estimation
+library(parallel)
+# Use all available cores
+n_clusters <- detectCores() - 2
+n_clusters
+  source("src/fit_model.R")
+time_par <- system.time({
+
+    fit_par <- fit_model_par(n_clusters, methods, model, t, Ysim, iobs, dt, N, df_fun_HeatEq)
+})
+
+print(time_par)
+
+print_computation_time(fit_par, methods)
+
+fit_summary <- compute_fit_summary(fit_par, p0, methods, n_par, par_names, metric_names)
 
 n_par_plot <- c(1,2)
 # Define xlims for parameters in histograms
 xlims <- list(
-    log_K = c(-4,0),
-    log_sT = c(-4,0)
+    log_K = c(-2.8,-2),
+    log_sT = c(-3.5,-2.5)
 )
+# Compute mean of sds for each parameter
+sd <- mean(fit_summary[[1]]$se[,"log_K"], na.rm=TRUE)
+# Plot histograms of parameter estimates
 par(mfrow=c(length(n_par_plot), length(methods)))
 for (par in par_names[n_par_plot]) {
     for (m in methods) {
@@ -105,13 +124,48 @@ for (par in par_names[n_par_plot]) {
              xlab = par,
              xlim = xlims[[par]])
         abline(v = p0[[par]], col="red", lwd=2)
+        est_par_mean <- mean(fit_summary[[m]]$est[,par], na.rm=TRUE)
+        sd_par_mean <- mean(fit_summary[[m]]$se[,par], na.rm=TRUE)
+        # Plot mean estimation and estimation of 95 % CI with mean sd and mean estimate
+        abline(v = est_par_mean, col="green", lwd=1, lty=2)
+        abline(v = est_par_mean - 1.96 * sd_par_mean, col="blue", lwd=1, lty=2)
+        abline(v = est_par_mean + 1.96 * sd_par_mean, col="blue", lwd=1, lty=2)
+        legend("topright",
+               legend = c("True value", "Mean estimate", "95% CI (mean sd)"),
+               col = c("red", "green", "blue"),
+               lty = c(1,2,2),
+               lwd = 2)
     }
 }
 
-# Print computation time for each method
+# Compute coverage
+coverage_ekf <- fit_summary$ekf$perf[,"coverage"]
+coverage_laplace <- fit_summary$laplace$perf[,"coverage"]
+coverage_laplace_thygesen <- fit_summary$laplace.thygesen$perf[,"coverage"]
+
+coverage_matrix <- cbind(
+    coverage_ekf,
+    coverage_laplace,
+    coverage_laplace_thygesen
+)
+
+colnames(coverage_matrix) <- methods
+coverage_matrix
+
+
+# Plot histograms of computation times
+par(mfrow=c(1,length(methods)))
 for (m in methods) {
-    times_m <- sapply(1:N, function(i) fit[[m]][[i]]$time)
-    cat("Method:", m, "\n")
-    cat(" Average time (s):", mean(times_m), "\n")
-    cat(" SD time (s):", sd(times_m), "\n\n")
+    hist(sapply(fit_par[[m]], function(res) res$time),
+         main = paste("Computation times (", m, ")", sep=""),
+         xlab = "Time (s)")
 }
+
+# Plot histograms of likelihoods
+par(mfrow=c(1,length(methods)))
+for (m in methods) {
+    hist(sapply(fit_par[[m]], function(res) res$fit$nll),
+         main = paste("Negative log-likelihoods (", m, ")", sep=""),
+         xlab = "Negative log-likelihood")
+}
+
