@@ -1,0 +1,78 @@
+\begin{frame}
+    \frametitle{Heat equation model with nonlinear heat-diffusion coefficient}
+    We divide a 1D rod with length $L$ into $N_x$ FV cells of length $\Delta x = \frac{L}{N_x}$.\\
+    System equations:
+    \begin{align}
+        d T_i &= \frac{K_i}{\Delta x^2} (T_{i+1} - 2 T_i + T_{i-1}) dt + g_i dw_i, \quad i = 1, \ldots, N_x \\
+        y_k &= C T(t_k) + v_k, \quad v_k \sim \mathcal{N}(0, \sigma_y^2 I)
+    \end{align}
+    where 
+    \begin{align}
+        K_i &= K_0 \exp\left( -\beta T_i \right), \\ g_i &= \sigma_T.
+    \end{align}
+    We choose sensor positions at: 0.1$L$, 0.3$L$, 0.7$L$, and 0.9$L$.\\
+    BCs: $T_0 = 0$, $T_{N_x+1} = 10$.\\
+    Parameters: $K_0 = 1.0$, $\beta = 0.6$, $\sigma_T = 0.2$, $\sigma_y = 0.05$.
+
+\end{frame}
+
+\foreach \i in {1,2,3} {
+    \begin{frame}
+        \frametitle{Simulation of the heat equation model}
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.6\textwidth]{../figures/HeatEq_example_data_dataset_\i.pdf}
+            \caption{Dataset \i: Simulation of temperatures $T_1,...,T_{N_x}$ with measurements at 4 sensor locations.}
+        \end{figure}
+    \end{frame}
+}
+
+\foreach \i in {5,10,15,20} {
+    \begin{frame}
+        \frametitle{Parameter estimation results, $N_x = \i$}
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.7\textwidth]{../figures/HeatEq_parameter_estimates_Nx_\i.pdf}
+        \end{figure}
+    \end{frame}
+}
+
+\begin{frame}
+    \frametitle{Computation time, parameter estimation, heat equation model}
+    \begin{figure}
+        \centering
+        \includegraphics[width=1.0\textwidth]{../figures/HeatEq_Nx_computation_time.pdf}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Parameter RMSE, heat equation model}
+    \begin{columns}
+        \column{0.33\textwidth}
+        \begin{figure}
+            \centering
+            \includegraphics[width=1.0\textwidth]{../figures/HeatEq_RMSE_vs_Nx_log_K0.pdf}
+        \end{figure}
+        \column{0.33\textwidth}
+        \begin{figure}
+            \centering
+            \includegraphics[width=1.0\textwidth]{../figures/HeatEq_RMSE_vs_Nx_log_beta.pdf}
+        \end{figure}
+        \column{0.33\textwidth}
+        \begin{figure}
+            \centering
+            \includegraphics[width=1.0\textwidth]{../figures/HeatEq_RMSE_vs_Nx_log_sT.pdf}
+        \end{figure}
+    \end{columns}
+    
+\end{frame}
+
+
+
+
+
+
+
+% model$addSystem(
+%             as.formula(paste0("dT",i," ~ K",i," * (T",i+1," - 2*T",i," + T",i-1,")/(dx^2) * dt + g",i," * dw",i))
+%         )

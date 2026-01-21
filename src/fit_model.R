@@ -55,7 +55,7 @@ fit_model_par <- function(n_clusters, methods, model, t, Ysim, iobs, dt, N, df_f
   # Export functions and variables to cluster
   clusterExport(
       cl,
-      varlist = c("model", "methods", "t", "Ysim", "iobs", "dt", "N", "df_fun_HeatEq"),
+      varlist = c("model", "methods", "t", "Ysim", "iobs", "dt", "N", "df_fun"),
       envir = environment()
   )
 
@@ -68,7 +68,17 @@ fit_model_par <- function(n_clusters, methods, model, t, Ysim, iobs, dt, N, df_f
 
       fit_sub <- parLapply(cl, 1:N, function(i) {
         
-        df <- df_fun_HeatEq(t, Ysim[[i]], iobs)
+  
+          if (is.null(df_fun)) {
+          # Default data frame
+          df <- data.frame(
+            t = t[iobs],
+            Y = Ysim[[i]]
+          )
+          } else {
+          # Custom data frame
+          df <- df_fun(t, Ysim[[i]], iobs)
+          }
         
         timing <- system.time({
           res <- model$estimate(
@@ -77,8 +87,7 @@ fit_model_par <- function(n_clusters, methods, model, t, Ysim, iobs, dt, N, df_f
             ode.solver = "rk4",
             ode.timestep = dt,
             silent = TRUE,
-            control = list(trace = 0),
-            laplace.residuals = TRUE
+            control = list(trace = 0)
           )
         })
         

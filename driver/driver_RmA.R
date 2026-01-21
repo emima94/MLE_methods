@@ -3,9 +3,7 @@
 require(SDEtools)
 require(ctsmTMB)
 require(RTMB)
-library(future)
-library(future.apply)
-
+library(parallel)
 set.seed(123456)
 
 #plan(multicore) # use multicore processing
@@ -16,15 +14,16 @@ sofun <- function() {
     for (f in src_files) {
         source(f)
     }
+    source("src/plots.R")
+    source("src/generate_data.R")
+    source("src/generate_data_RmA.R")
+    source("src/fit_model.R")
+    source("src/compute_coverage.R")
+    source("src/compute_fit_summary.R")
 }
 sofun()
 
-source("src/plots.R")
-source("src/generate_data.R")
-source("src/generate_data_RmA.R")
-source("src/fit_model.R")
-source("src/compute_coverage.R")
-source("src/compute_fit_summary.R")
+# Set font in plots to Times New Roman 
 
 #### Generate data ####
 
@@ -34,7 +33,7 @@ dt <- 0.1
 t <- seq(0,T,dt)
 
 # Number of datasets to simulate
-N <- 100
+N <- 5
 
 x0_bar = c(0.5, 0.5)
 P0 <- diag(c(0.001,0.001))
@@ -74,10 +73,22 @@ iobs <- sim_data$iobs
 Nsim <- sapply(Xsim, function(x) exp(x[,1]), simplify=FALSE)
 
 
-
-k <- 3
-plot(t,exp(Xsim[[k]][,1]), type="l", col="blue") 
-points(t[iobs], Ysim[[k]], col="red")
+# Plot example data
+scale <- 0.7
+ratio <- 0.3
+k <- c(1,2,3)
+for (k in 1:3){
+    pdf(sprintf("figures/RmA-sim-obs_prey_%d.pdf", k), width = 10*scale, height = 10*ratio*scale)
+    par(mar = c(4.0, 4.0, 1.0, 1.0))
+    plot(t,exp(Xsim[[k]][,1]), type="l", col="black", xlab = "Time", ylab = "N",
+         family = "serif") 
+    points(t[iobs], Ysim[[k]], col="red")
+    dev.off()
+    pdf(sprintf("figures/RmA-sim-obs_predator_%d.pdf", k), width = 10*scale, height = 10*ratio*scale)
+    par(mar = c(4.0, 4.0, 1.0, 1.0))   
+    plot(t,exp(Xsim[[k]][,2]), type="l", col="black", xlab = "Time", ylab = "P", family = "serif")
+    dev.off()
+}
 
 matplot(t, do.call(cbind, Nsim),
         type = "l",
@@ -132,34 +143,39 @@ par_names <- rownames(model$getParameters(type = "free"))
 n_par <- length(par_names)
 
 # fit to each dataset with each method
-methods <- c("ekf", "laplace", "laplace2")
+methods = c("ekf", "laplace", "laplace.thygesen")
 
 # Test over a range of noise lvls:
-sigma_vals <- log(c(0.01, 0.05, 0.1, 0.2, 0.4))
+#sigma_vals <- c(0.01, 0.05, 0.1, 0.2, 0.4)
+sigma_vals <- c(0.05, 0.1, 0.2)
 fit_sigma <- vector("list", length(sigma_vals))
 names(fit_sigma) <- paste0("sigma_", sigma_vals)
 comp_time <- matrix(NA, nrow=length(sigma_vals), ncol=length(methods))
 rownames(comp_time) <- paste0("sigma_", sigma_vals)
 colnames(comp_time) <- methods
 
+# Number of clusters for parallel processing
+n_clusters <- 4
+sofun()
 
 for (sigma_val in sigma_vals) {
 
     message("Fitting for sigma = ", sigma_val, sep="")
     p0_k <- p0
-    p0_k$log_sN <- sigma_val
+    p0_k$log_sN <- log(sigma_val)
 
-    sim_data <- generate_data(fsim, gsim, hsim, t, x0, p0_k, dt, N)
+    sim_data <- generate_data_RmA(fsim, gsim, hsim, t, x0, p0_k, dt, N)
     Ysim <- sim_data$Ysim
     iobs <- sim_data$iobs
-    fit_sigma[[paste0("sigma_", sigma_val)]] <- fit_model(methods, model, t, Ysim, iobs, dt, N)
+    fit_sigma[[paste0("sigma_", sigma_val)]] <- fit_model_par(n_clusters, methods, model, 
+                                            t, Ysim, iobs, dt, N, df_fun = NULL)
 }
 
 # Save fits with date and time in file name
 #filename <- paste0("results/RmA_fits_sigma_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".rds")
 #saveRDS(fit_sigma, file=filename)
 
-fit_sigma <- readRDS("results/RmA_fits_sigma_20260113_092925.rds")
+#fit_sigma <- readRDS("results/RmA_fits_sigma_20260113_092925.rds")
 
 fit_sigma[[1]]$ekf[[1]]
 
@@ -178,7 +194,7 @@ for (sigma_val in sigma_vals) {
     message("Computing summary for sigma = ", sigma_val, sep="")
     # True parameters
     p0_k <- p0
-    p0_k$log_sN <- sigma_val
+    p0_k$log_sN <- log(sigma_val)
     fit_summary <- compute_fit_summary(fit, p0_k, methods, n_par, par_names, metric_names)
     
     fit_summary_sigma[[paste0("sigma_", sigma_val)]] <- fit_summary
@@ -234,7 +250,7 @@ comp_time
 # For a given noise level, show parameter estimate distributions
 sigma_val <- sigma_vals[4]
 p0_k <- p0
-p0_k$log_sN <- sigma_val
+p0_k$log_sN <- log(sigma_val)
 fit_summary <- fit_summary_sigma[[paste0("sigma_", sigma_val)]]
 
 # Plot distribution of parameter estimates for every method for every parameter (n_par x n_methods plots)

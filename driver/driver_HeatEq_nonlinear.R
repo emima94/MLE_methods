@@ -3,8 +3,7 @@
 require(SDEtools)
 require(ctsmTMB)
 require(RTMB)
-library(future)
-library(future.apply)
+library(parallel)
 
 set.seed(123456)
 
@@ -33,7 +32,7 @@ dt <- 0.1
 t <- seq(0,T,dt)
 
 # Number of datasets to simulate
-N <- 5
+N <- 100
 
 # True parameters
 p0 <- list(
@@ -54,67 +53,19 @@ gsim_bar <- function(x, par=p0) {
     gsim(x, par, state_dependent=FALSE)
 }
 
-sofun()
-# Fit model to data
-model <- create_HeatEq_model(
-    obs_sd = p0$obs_sd,
-    x0 = x0_bar,
-    P0 = P0,
-    Nx = Nx,
-    L = p0$L,
-    T0 = p0$T0,
-    TL = p0$TL,
-    sensor_pos = p0$sensor_pos,
-    nonlinear = TRUE,
-    state_dep_diffusion = FALSE
-)
-model
-
-par_names <- rownames(model$getParameters(type = "free"))
-n_par <- length(par_names)
-
 methods = c("ekf", "laplace", "laplace.thygesen")
 
 metric_names <- c("coverage", "bias", "rmse")
 
-sim_data <- generate_data(fsim_bar, gsim_bar, hsim, t, x0, p0, dt, N)
-Xsim <- sim_data$Xsim
-Ysim <- sim_data$Ysim
-iobs <- sim_data$iobs
-
-# Plot simulated data
-k <- 4
-par(mfrow=c(1,1))
-matplot(t, Xsim[[k]], type="l")
-#matpoints(t[iobs], Ysim[[k]], col="red", pch=1)
-
-# Plot all simulated data in one plot
-matplot(t, Xsim[[1]], type="l", ylim = c(0,10), xlab="Time", ylab="Temperature")
-lapply(Xsim, function(x) matlines(t, x, type="l"))
-
-
-# Plot diffusion coefficient K(T)
-T_seq <- seq(0, 10, length.out=100)
-beta <- exp(p0$log_beta)
-K0 <- exp(p0$log_K0)
-K_T <- K0 * exp(-beta * T_seq)
-plot(T_seq, K_T, type="l", main="Diffusion Coefficient K(T)", xlab="Temperature T", ylab="K(T)")
-
 
 # Test parallel par estimation
-library(parallel)
-# Use all available cores
-n_clusters <- 3
-n_clusters
-  source("src/fit_model.R")
-time_par <- system.time({
 
-    fit_par <- fit_model_par(n_clusters, methods, model, t, Ysim, iobs, dt, N, df_fun_HeatEq)
+# Number of clusters for parallel processing
+n_clusters <- 2
 
-})
 
 ## Sweep over Nx
-Nx_vec <- c(5,10,15,20)
+Nx_vec <- c(5, 10, 20, 40)
 fit_Nx <- vector("list", length(Nx_vec))
 
 for (Nx in Nx_vec) {
@@ -125,7 +76,7 @@ for (Nx in Nx_vec) {
     x0 <- matrix(runif(N * Nx, min=2, max=8), nrow=N, ncol=Nx, byrow=TRUE)
     # Simulate data
     p0_Nx <- p0
-    sim_data <- generate_data(fsim_nonlinear, gsim_nonlinear, hsim, t, x0, p0, dt, N)
+    sim_data <- generate_data(fsim_bar, gsim_bar, hsim, t, x0, p0, dt, N)
     Ysim <- sim_data$Ysim
     iobs <- sim_data$iobs
 
@@ -143,6 +94,9 @@ for (Nx in Nx_vec) {
         state_dep_diffusion = FALSE
     )
 
+    par_names <- rownames(model$getParameters(type = "free"))
+    n_par <- length(par_names)
+
     fit_par <- fit_model_par(n_clusters, methods, model, 
         t, Ysim, iobs, dt, N, df_fun_HeatEq)   
 
@@ -150,6 +104,9 @@ for (Nx in Nx_vec) {
 
 }
 
+# Save results
+time_str <- format(Sys.time(), "%Y%m%d_%H%M%S")
+saveRDS(fit_Nx, file=paste0("results/HeatEq_nonlinear_fit_Nx_", time_str, ".rds"))
 
 fit_Nx_summary <- list()
 for (Nx in Nx_vec) {
@@ -301,3 +258,11 @@ for (par in par_names) {
     }
 }
 
+
+
+# Plot diffusion coefficient K(T)
+T_seq <- seq(0, 10, length.out=100)
+beta <- exp(p0$log_beta)
+K0 <- exp(p0$log_K0)
+K_T <- K0 * exp(-beta * T_seq)
+plot(T_seq, K_T, type="l", main="Diffusion Coefficient K(T)", xlab="Temperature T", ylab="K(T)")
