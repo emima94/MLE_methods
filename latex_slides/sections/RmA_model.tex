@@ -122,26 +122,165 @@
     \end{frame}
 }
 
+\foreach \i in {1,...,5} {
+    \begin{frame}
+        \frametitle{Parameter estimation results}
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.7\textwidth]{../figures/RmA_parameter_estimates_log_sN_\i.pdf}
+        \end{figure}
+    \end{frame}
+}
+
 \begin{frame}
-    \frametitle{2D model: The RmA predator-prey model}
-    Parameters used for simulating data:
-    \begin{table}[]
+    \frametitle{Computation time, parameter estimation, RmA model}
+    \begin{figure}
         \centering
-        \begin{tabular}{l l l l l l}
-            \toprule
-            Parameter & Description & True value & Init. & Est. Laplace & Est. EKF \\
-            \midrule
-            $N_0$ & initial prey population size & 0.5 \\
-            $P_0$ & initial predator population size & 0.5 \\
-            $r$ & specific growth rate, prey & 1.0 \\
-            $K$ & prey carrying capacity & 1.0 \\
-            $\beta$ & ? not consistent with "Inference.." paper & 3.0 \\
-            $C_{max}$ & maximum consumption rate, predator & 1.0 \\
-            $\varepsilon$ & conversion efficiency & 3.0 \\
-            $\mu$ & predator mortality rate & 1.0 \\
-            $\sigma_N$ & process noise intensity, prey & 0.2 \\
-            $\sigma_P$ & process noise intensity, predator & 0.1 \\
-            \bottomrule
-        \end{tabular}
-    \end{table}
+        \includegraphics[width=1.0\textwidth]{../figures/RmA_computation_time.pdf}
+    \end{figure}
 \end{frame}
+
+\begin{frame}
+    \frametitle{RMSE and coverage of parameters}
+    \begin{columns}
+        \foreach \i in {1,...,5} {
+            \begin{column}{0.2\textwidth}
+                \begin{figure}
+                    \centering
+                    \includegraphics[width=1.0\textwidth]{../figures/RmA_rmse_vs_log_sN_\i.pdf}
+                    %\caption*{\i}
+                \end{figure}
+                \begin{figure}
+                    \centering
+                    \includegraphics[width=1.0\textwidth]{../figures/RmA_coverage_vs_log_sN_\i.pdf}
+                    %\caption*{\i}
+                \end{figure}
+            
+            \end{column}            
+           
+        }
+    \end{columns}
+    RMSE and coverage for parameter estimate $\hat \theta_i$ with covariance $\Sigma^{(i)}$:
+    \begin{align}
+        RMSE_i &= \sqrt{\frac{1}{N}\sum_{j=1}^N (\hat{\theta}_{i,j} - \theta_{i})^2}, \quad
+        \text{Coverage}_i = \frac{1}{N}
+                                            \sum_{i=1}^{N}
+                                            \mathbb{I}
+                                            \!\left(
+                                            \left|
+                                            \hat{\theta}_{i,j} - \theta_j^{\star}
+                                            \right|
+                                            \le
+                                            z_{\alpha/2}
+                                            \sqrt{\Sigma_{jj}^{(i)}}
+                                            \right),
+    \end{align}
+\end{frame}
+
+    
+\begin{frame}
+    \frametitle{NLL}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.7\textwidth]{../figures/RmA_likelihood_histograms.pdf}
+    \end{figure}
+\end{frame}
+
+
+\foreach \i in {1,...,6} {
+    \begin{frame}
+        \frametitle{Parameter estimation results}
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.7\textwidth]{../figures/RmA_parameter_estimates_T_\i.pdf}
+        \end{figure}
+    \end{frame}
+}
+    
+\begin{frame}
+    \frametitle{Computation time, parameter estimation, RmA model}
+    \begin{figure}
+        \centering
+        \includegraphics[width=1.0\textwidth]{../figures/RmA_computation_time_T.pdf}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{RMSE and coverage of parameters}
+    \begin{columns}
+        \foreach \i in {1,...,5} {
+            \begin{column}{0.2\textwidth}
+                \begin{figure}
+                    \centering
+                    \includegraphics[width=1.0\textwidth]{../figures/RmA_rmse_vs_T_\i.pdf}
+                    %\caption*{\i}
+                \end{figure}
+                \begin{figure}
+                    \centering
+                    \includegraphics[width=1.0\textwidth]{../figures/RmA_coverage_vs_T_\i.pdf}
+                    %\caption*{\i}
+                \end{figure}
+            
+            \end{column}            
+           
+        }
+    \end{columns}
+    RMSE and coverage for parameter estimate $\hat \theta_i$ with covariance $\Sigma^{(i)}$:
+    \begin{align}
+        RMSE_i &= \sqrt{\frac{1}{N}\sum_{j=1}^N (\hat{\theta}_{i,j} - \theta_{i})^2}, \quad
+        \text{Coverage}_i = \frac{1}{N}
+                                            \sum_{i=1}^{N}
+                                            \mathbb{I}
+                                            \!\left(
+                                            \left|
+                                            \hat{\theta}_{i,j} - \theta_j^{\star}
+                                            \right|
+                                            \le
+                                            z_{\alpha/2}
+                                            \sqrt{\Sigma_{jj}^{(i)}}
+                                            \right),
+    \end{align}
+\end{frame}
+
+    
+\begin{frame}
+    \frametitle{NLL}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.7\textwidth]{../figures/RmA_likelihood_histograms_T.pdf}
+    \end{figure}
+\end{frame}
+
+% \begin{frame}
+%     \frametitle{NLL deviation from true NLL}
+%     \begin{figure}
+%         \centering
+%         \includegraphics[width=0.7\textwidth]{../figures/RmA_dev_likelihood_histograms_T.pdf}
+%     \end{figure}
+% \end{frame}
+
+
+
+% \begin{frame}
+%     \frametitle{2D model: The RmA predator-prey model}
+%     Parameters used for simulating data:
+%     \begin{table}[]
+%         \centering
+%         \begin{tabular}{l l l l l l}
+%             \toprule
+%             Parameter & Description & True value & Init. & Est. Laplace & Est. EKF \\
+%             \midrule
+%             $N_0$ & initial prey population size & 0.5 \\
+%             $P_0$ & initial predator population size & 0.5 \\
+%             $r$ & specific growth rate, prey & 1.0 \\
+%             $K$ & prey carrying capacity & 1.0 \\
+%             $\beta$ & ? not consistent with "Inference.." paper & 3.0 \\
+%             $C_{max}$ & maximum consumption rate, predator & 1.0 \\
+%             $\varepsilon$ & conversion efficiency & 3.0 \\
+%             $\mu$ & predator mortality rate & 1.0 \\
+%             $\sigma_N$ & process noise intensity, prey & 0.2 \\
+%             $\sigma_P$ & process noise intensity, predator & 0.1 \\
+%             \bottomrule
+%         \end{tabular}
+%     \end{table}
+% \end{frame}

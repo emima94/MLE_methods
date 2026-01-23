@@ -65,7 +65,7 @@ n_clusters <- 2
 
 
 ## Sweep over Nx
-Nx_vec <- c(5, 10, 20, 40)
+Nx_vec <- c(5, 10, 15, 20)
 fit_Nx <- vector("list", length(Nx_vec))
 
 for (Nx in Nx_vec) {
@@ -107,6 +107,8 @@ for (Nx in Nx_vec) {
 # Save results
 time_str <- format(Sys.time(), "%Y%m%d_%H%M%S")
 saveRDS(fit_Nx, file=paste0("results/HeatEq_nonlinear_fit_Nx_", time_str, ".rds"))
+
+
 
 fit_Nx_summary <- list()
 for (Nx in Nx_vec) {

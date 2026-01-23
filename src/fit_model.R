@@ -90,6 +90,8 @@ fit_model_par <- function(n_clusters, methods, model, t, Ysim, iobs, dt, N, df_f
             control = list(trace = 0)
           )
         })
+
+        res$nll_funcs <- model$getLikelihood()
         
         list(
           fit = res,

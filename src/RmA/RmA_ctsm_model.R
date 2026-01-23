@@ -38,15 +38,17 @@ create_RmA_model <- function(p, x0, P0) {
     )
 
     model$setParameter(
-        log_r = log(c(init=1.0, lower=0, upper = 10)),
-        log_K = log(c(init=1, lower=0, upper = 10)),
+        log_r = log(c(init=0.5, lower=0, upper = 10)),
+        #log_r = log(1.0),
+        log_K = log(c(init=0.5, lower=0, upper = 10)),
+        #log_K = p0$log_K,
         #epsilon = c(init=3, lower=0, upper = 10),
-        epsilon = 3.0,
-        log_beta = log(c(init=3.0, lower=0, upper = 10)),
+        epsilon = p0$epsilon,
+        log_beta = log(c(init=1.0, lower=0, upper = 10)),
         #Cmax = c(init=1, lower=0, upper = 10),
-        Cmax = 1.0,
-        log_mu = log(c(init=1.0, lower=0, upper = 10)),
-        log_sN = log(c(init=0.2, lower=0, upper = 10)),
+        Cmax = p0$Cmax,
+        log_mu = log(c(init=0.5, lower=0, upper = 10)),
+        log_sN = log(c(init=0.4, lower=0, upper = 10)),
         #log_sP = log(c(init=0.1, lower=0, upper = 10)),
         log_sP = p$log_sP,
         obs_sd = p$obs_sd

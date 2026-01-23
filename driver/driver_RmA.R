@@ -20,6 +20,7 @@ sofun <- function() {
     source("src/fit_model.R")
     source("src/compute_coverage.R")
     source("src/compute_fit_summary.R")
+    source("src/eval_results.R")
 }
 sofun()
 
@@ -33,26 +34,14 @@ dt <- 0.1
 t <- seq(0,T,dt)
 
 # Number of datasets to simulate
-N <- 5
+N <- 100
 
 x0_bar = c(0.5, 0.5)
-P0 <- diag(c(0.001,0.001))
+P0 <- diag(c(0.01,0.01))
 x0 <- log(matrix(rnorm(N * length(x0_bar), x0_bar, diag(sqrt(P0))), nrow=N, ncol=length(x0_bar)))
 N0 <- exp(x0)
 N0
 
-# True parameters
-# p0 <- list(
-#     r = 2.0,
-#     K = 100,
-#     epsilon = 0.3,
-#     beta = 0.06,
-#     Cmax = 3.0,
-#     mu = 0.2,
-#     sN = 0.2, #0.1
-#     sP = 0.1,  #0.1
-#     obs_sd = 0.1
-# )
 p0 <- list(
     log_r = log(1.0),
     log_K = log(1.0),
@@ -66,13 +55,22 @@ p0 <- list(
 )
 source("src/generate_data_RmA.R")
 sofun()
+p0$log_mu <- log(4)
 sim_data <- generate_data_RmA(fsim, gsim, hsim, t, x0, p0, dt, N)
 Xsim <- sim_data$Xsim
 Ysim <- sim_data$Ysim
 iobs <- sim_data$iobs
 Nsim <- sapply(Xsim, function(x) exp(x[,1]), simplify=FALSE)
+plot(t, exp(Xsim[[1]][,1]), type="l")
 
 
+matplot(t, do.call(cbind, Nsim),
+        type = "l",
+        lty = 1,
+        col = rgb(0, 0, 0, 0.2),
+        xlab = "Time",
+        ylab = "N"
+        )
 # Plot example data
 scale <- 0.7
 ratio <- 0.3
@@ -116,29 +114,6 @@ if (is_Y_neg) {
 sofun()
 model <- create_RmA_model(p = p0, x0 = x0_bar, P0 = P0)
 
-# # Test the first 10 datasets
-# for (k in 1:3) {
-#     message("Fitting dataset ", k, sep="")
-# df <- data.frame(
-#     t = t[iobs],
-#     Y = Ysim[[k]]
-
-# )
-# message("Fitting with EKF...")
-# fit_ekf <- model$estimate(
-#     data = df,
-#     method = "ekf",
-#     ode.solver = "rk4",
-#     ode.timestep = dt
-#     )
-# message("Fitting with Laplace...")
-# fit_laplace <- model$estimate(
-#     data = df,
-#     method = "laplace",
-#     ode.solver = "rk4",
-#     ode.timestep = dt
-#     )
-# }   
 par_names <- rownames(model$getParameters(type = "free"))
 n_par <- length(par_names)
 
@@ -147,27 +122,27 @@ methods = c("ekf", "laplace", "laplace.thygesen")
 
 # Test over a range of noise lvls:
 #sigma_vals <- c(0.01, 0.05, 0.1, 0.2, 0.4)
-sigma_vals <- c(0.05, 0.1, 0.2)
-fit_sigma <- vector("list", length(sigma_vals))
-names(fit_sigma) <- paste0("sigma_", sigma_vals)
-comp_time <- matrix(NA, nrow=length(sigma_vals), ncol=length(methods))
-rownames(comp_time) <- paste0("sigma_", sigma_vals)
-colnames(comp_time) <- methods
+var_name <- par_names[5]
+log_sN_vals <- log(c(0.01, 0.05, 0.1, 0.2, 0.4))
+fit_sigma <- vector("list", length(log_sN_vals))
+names(fit_sigma) <- paste0(var_name, "_", 1:length(log_sN_vals))
 
 # Number of clusters for parallel processing
 n_clusters <- 4
+
 sofun()
 
-for (sigma_val in sigma_vals) {
+for (i in 1:length(log_sN_vals)) {
+    log_sN_val <- log_sN_vals[i]
 
-    message("Fitting for sigma = ", sigma_val, sep="")
+    message("Fitting for sigma = ", exp(log_sN_val), sep="")
     p0_k <- p0
-    p0_k$log_sN <- log(sigma_val)
+    p0_k$log_sN <- log_sN_val
 
     sim_data <- generate_data_RmA(fsim, gsim, hsim, t, x0, p0_k, dt, N)
     Ysim <- sim_data$Ysim
     iobs <- sim_data$iobs
-    fit_sigma[[paste0("sigma_", sigma_val)]] <- fit_model_par(n_clusters, methods, model, 
+    fit_sigma[[i]] <- fit_model_par(n_clusters, methods, model, 
                                             t, Ysim, iobs, dt, N, df_fun = NULL)
 }
 
@@ -175,186 +150,339 @@ for (sigma_val in sigma_vals) {
 #filename <- paste0("results/RmA_fits_sigma_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".rds")
 #saveRDS(fit_sigma, file=filename)
 
-#fit_sigma <- readRDS("results/RmA_fits_sigma_20260113_092925.rds")
+fit_sigma <- readRDS("results/RmA_fits_sigma_20260121_100920.rds")
 
-fit_sigma[[1]]$ekf[[1]]
+#fit_sigma
+
+
 
 
 
 # Summarize fits
-source("src/compute_coverage.R")
-source("src/compute_fit_summary.R")
 metric_names <- c("coverage", "bias", "rmse")
 
-fit_summary_sigma <- vector("list", length(sigma_vals))
+fit_summary_sigma <- vector("list", length(log_sN_vals))
 names(fit_summary_sigma) <- names(fit_sigma)
 
-for (sigma_val in sigma_vals) {
-    fit <- fit_sigma[[paste0("sigma_", sigma_val)]]
-    message("Computing summary for sigma = ", sigma_val, sep="")
+for (i in 1:length(log_sN_vals)) {
+    log_sN_val <- log_sN_vals[i]
+    fit <- fit_sigma[[i]]
+    message("Computing summary for sigma = ", exp(log_sN_val), sep="")
     # True parameters
     p0_k <- p0
-    p0_k$log_sN <- log(sigma_val)
+    p0_k$log_sN <- log_sN_val
     fit_summary <- compute_fit_summary(fit, p0_k, methods, n_par, par_names, metric_names)
     
-    fit_summary_sigma[[paste0("sigma_", sigma_val)]] <- fit_summary
+    fit_summary_sigma[[i]] <- fit_summary
 }
 fit_summary_sigma
 
-# Convergence summary
-compute_convergence <- function(fit_sigma, sigma_vals, methods, N) {
-    convergence <- matrix(NA, nrow = length(sigma_vals), ncol = length(methods))
-    rownames(convergence) <- paste0("sigma_", sigma_vals)
-    colnames(convergence) <- methods
+#### Evaluation plots ####
+sofun()
+# Computation time vs sigma_vals #
+null_count <- create_computation_time_plots(fit_sigma, log_sN_vals, methods, "log_sN", "RmA")
+null_count
 
-    for (i in 1:length(sigma_vals)) {
-        sigma_val <- sigma_vals[i]
-        fit_i <- fit_sigma[[i]]
-        for (m in methods) {
-            convergence[i,m] <- sum(sapply(fit_i[[m]], function(fit) {
-                !is.null(fit$fit)
-            }))/N
-        }
-        
-    }
-    return(convergence)
-}
 
-convergence <- compute_convergence(fit_sigma, sigma_vals, methods, N)
-convergence
-
-# Plot metric vs noise level for each method for all parameters
-ylims <- list(c(0,1), c(-0.2,0.2), c(0,0.5))
-names(ylims) <- metric_names
-
-# Plot metrics vs noise level
-plot_metric("coverage", fit_summary_sigma, sigma_vals, "sigma", ylims, methods, par_names)
-plot_metric("bias", fit_summary_sigma, sigma_vals, "sigma", ylims, methods, par_names)
-plot_metric("rmse", fit_summary_sigma, sigma_vals, "sigma", ylims, methods, par_names)
-
-fit_sigma[[1]]$ekf[[3]]$fit
-
-# Computation time summary
-for (i in 1:length(sigma_vals)) {
-    sigma_val <- sigma_vals[i]
-    fit_i <- fit_sigma[[paste0("sigma_", sigma_val)]]
-    for (m in methods) {
-        times <- sapply(fit_i[[m]], function(fit) {
-            fit$time
-        })
-        comp_time[i,m] <- mean(times, na.rm=TRUE)
-    }
-}
-comp_time
-
-# For a given noise level, show parameter estimate distributions
-sigma_val <- sigma_vals[4]
-p0_k <- p0
-p0_k$log_sN <- log(sigma_val)
-fit_summary <- fit_summary_sigma[[paste0("sigma_", sigma_val)]]
-
-# Plot distribution of parameter estimates for every method for every parameter (n_par x n_methods plots)
-n_par_plot <- c(1,2,3,4,5)
-# Define xlims for parameters in histograms
-xlims <- list(
-    log_r = c(-2,2),
-    log_K = c(-2,2),
-    log_beta = c(-2,6),
-    log_mu = c(-2,3),
-    log_sN = c(-3,0)
+# Parameter estimation distributions #
+sofun()
+xlims = list(
+            log_r = c(-1,1),
+            log_K = c(-1,1),
+            log_beta = c(-2,2),
+            log_mu = c(-2,2),
+            log_sN = c(-16,2)
 )
-par(mfrow=c(length(n_par_plot), length(methods)))
-for (par in par_names[n_par_plot]) {
-    for (m in methods) {
-        hist(fit_summary[[m]]$est[,par],
-             main = paste("Estimates of ", par, " (", m, ")", sep=""),
-             xlab = par,
-             xlim = xlims[[par]])
-        abline(v = p0_k[[par]], col="red", lwd=2)
-    }
-}
+create_parameter_estimation_plots(fit_summary_sigma, log_sN_vals, methods, 
+                        "log_sN", "RmA", par_names, p0, xlims, var_name_title =  "sigma_N", var_title_func = function(x) exp(x)
+                                 )
 
-# Plot distribution of standard errors for every method for every parameter (n_par x n_methods plots)
-par(mfrow=c(n_par, length(methods)))
-for (par in par_names) {
-    for (m in methods) {
-        hist(fit_summary[[m]]$se[,par],
-             main = paste("SE of ", par, " (", m, ")", sep=""),
-             xlab = par)
-    }
-}
 
-#### Test different lengths of time series ####
-N <- 100
-dt <- 0.1
+# Coverage and RMSE plots # 
+create_perf_metric_plot(fit_summary_sigma, log_sN_vals, methods, 
+                        "log_sN", "RmA", par_names, "coverage"
+                                 )
+
+create_perf_metric_plot(fit_summary_sigma, log_sN_vals, methods, 
+                        "log_sN", "RmA", par_names, "rmse"
+                                 )
+
+# Likelihood distribution plots
+create_likelihood_histograms(fit_sigma, log_sN_vals, methods, 
+                        "log_sN", "RmA", "sigma_N", var_title_func = function(x) exp(x)
+                                 )
+
+#### ---------------------------------- ####
+#### Sweep lengths of time series, T    ####
+#### ---------------------------------- ####
+
+
+p0 <- list(
+    log_r = log(1.0),
+    log_K = log(1.0),
+    epsilon = 3.0,
+    log_beta = log(3.0),
+    Cmax = 1.0,
+    log_mu = log(1.0),
+    log_sN = log(0.2), #0.1
+    log_sP = log(0.1),  #0.1
+    obs_sd = 0.05
+)
+
+sofun()
 x0_bar = c(0.5, 0.5)
 P0 <- diag(c(0.01,0.01))
 x0 <- log(matrix(rnorm(N * length(x0_bar), x0_bar, diag(sqrt(P0))), nrow=N, ncol=length(x0_bar)))
 
-methods <- c("ekf", "laplace", "laplace.thygesen")
+model <- create_RmA_model(p = p0, x0 = x0_bar, P0 = P0)
+model$setParameter(
+    log_sP = log(c(init = 0.05, lower = 0, upper = 10))
+)
 
-# Test different lengths of time series
-T_vals <- c(20, 50, 100, 200)
+par_names <- rownames(model$getParameters(type = "free"))
+n_par <- length(par_names)
+
+# fit to each dataset with each method
+methods = c("ekf", "laplace", "laplace.thygesen")
+
+# Number of datasets to simulate
+N <- 20
+
+# Observation frequency
+tsample = 0.1
+
+
+
+
+
+var_name <- "T"
+T_vals <- c(400, 800)
+#T_vals <- c(100, 200)
 fit_T <- vector("list", length(T_vals))
-names(fit_T) <- paste0("T_", T_vals)
-for (T_val in T_vals) {
+names(fit_T) <- paste0(var_name, "_", 1:length(T_vals))
+n_clusters <- 1
+for (i in 1:length(T_vals)) {
+    T <- T_vals[i]
 
-    message("Fitting for T = ", T_val, sep="")
-    t <- seq(0,T_val,dt)
+    message("Fitting for T = ", T, sep="")
+    t <- seq(0,T,dt)
 
-    sim_data <- generate_data_RmA(fsim, gsim, hsim, t, x0, p0, dt, N)
+    sim_data <- generate_data_RmA(fsim, gsim, hsim, t, x0, p0, dt, N, tsample)
     Ysim <- sim_data$Ysim
     iobs <- sim_data$iobs
-    fit_T[[paste0("T_", T_val)]] <- fit_model(methods, model, t, Ysim, iobs, dt, N)
+    fit_T[[i]] <- fit_model_par(n_clusters, methods, model, 
+                                            t, Ysim, iobs, dt, N, df_fun = NULL)
 }
 
-# Save fits with date and time in file name
-filename_T <- paste0("results/RmA_fits_T_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".rds")
-saveRDS(fit_T, file=filename_T)
-
 # Summarize fits
+metric_names <- c("coverage", "bias", "rmse")
 fit_summary_T <- vector("list", length(T_vals))
 names(fit_summary_T) <- names(fit_T)
 
-for (T_val in T_vals) {
-    fit <- fit_T[[paste0("T_", T_val)]]
-
+for (i in 1:length(T_vals)) {
+    T <- T_vals[i]
+    fit <- fit_T[[i]]
+    message("Computing summary for T = ", T, sep="")
     fit_summary <- compute_fit_summary(fit, p0, methods, n_par, par_names, metric_names)
     
-    fit_summary_T[[paste0("T_", T_val)]] <- fit_summary
+    fit_summary_T[[i]] <- fit_summary
 }
 fit_summary_T
+sofun()
+# Computation time vs T_vals #
+null_count <- create_computation_time_plots(fit_T, T_vals, methods, "T", "RmA")
+null_count  
 
-fit_T
- 
-ylims <- list(c(0,1), c(-0.2,0.2), c(0,0.5))
-names(ylims) <- metric_names
-plot_metric("coverage", fit_summary_T, T_vals, "T", ylims, methods, par_names)
-plot_metric("bias", fit_summary_T, T_vals, "T", ylims, methods, par_names)
-plot_metric("rmse", fit_summary_T, T_vals, "T", ylims, methods, par_names)
-
-
-# For a given time length, show parameter estimate distributions
-T_val <- T_vals[1]
-fit_summary <- fit_summary_T[[paste0("T_", T_val)]]
-
-# Plot distribution of parameter estimates for every method for every parameter (n_par x n_methods plots)
-n_par_plot <- c(1,2,3,4,5)
-# Define xlims for parameters in histograms
-xlims <- list(
-    log_r = c(-2,2),
-    log_K = c(-2,2),
-    log_beta = c(-2,6),
-    log_mu = c(-2,3),
-    log_sN = c(-3,0)
+# Parameter estimation distributions #
+sofun()
+xlims = list(
+            log_r = c(-1,1),
+            log_K = c(-1,1),
+            log_beta = c(-2,2),
+            log_mu = c(-2,2),
+            log_sN = c(-16,2)
 )
-par(mfrow=c(length(n_par_plot), length(methods)))
-for (par in par_names[n_par_plot]) {
-    for (m in methods) {
-        hist(fit_summary[[m]]$est[,par],
-             main = paste("Estimates of ", par, " (", m, ")", sep=""),
-             xlab = par,
-             xlim = xlims[[par]])
-        abline(v = p0[[par]], col="red", lwd=2)
+create_parameter_estimation_plots(fit_summary_T, T_vals, methods, 
+                        "T", "RmA", par_names, p0, xlims, var_name_title =  "T", var_title_func = function(x) x
+                                 )
+
+
+# Coverage and RMSE plots # 
+create_perf_metric_plot(fit_summary_T, T_vals, methods, 
+                        "T", "RmA", par_names, "coverage"
+                                 )
+
+create_perf_metric_plot(fit_summary_T, T_vals, methods, 
+                        "T", "RmA", par_names, "rmse"
+                                 )
+
+# Likelihood distribution plots
+sofun()
+create_likelihood_histograms(fit_T, T_vals, methods, 
+                        "T", NA, "RmA", "T", var_title_func = function(x) x
+                                 )
+# True parameters
+theta_true <- sapply(par_names, function(pn) p0[[pn]])
+create_likelihood_histograms(fit_T, T_vals, methods, 
+                        "T", theta_true, "RmA", "T", var_title_func = function(x) x,
+                                 plot_dev = TRUE)
+
+
+# Make a likelihood profile in 2D for a single dataset
+delta_plus_list <- list(
+        log_r = 0.6,
+        log_mu = 0.4,
+        log_beta = 1.0
+    )
+
+delta_minus_list <- list(
+    log_r = 0.6,
+    log_mu = 0.7,
+    log_beta = 2.0
+)
+   
+pg_name <- c("r", "beta")
+pg <- c(paste0("log_", pg_name[1]), paste0("log_", pg_name[2]))
+
+n_grid = 10
+sofun()
+delta_list <- list(
+    delta_plus_list = delta_plus_list,
+    delta_minus_list = delta_minus_list
+)
+out_2D_nll <- likelihood_profile_2D_RmA(p0, T, pg_name, n_grid, delta_list)
+out_2D_nll$nll_matrix
+replayPlot(out_2D_nll$plt_edge)
+replayPlot(out_2D_nll$plt_contour)
+
+# Now, try to estimate also log_sN and log_beta while profiling log_r and log_mu
+n_grid = 10
+dt <- 0.1
+sofun()
+pg_name <- c("mu", "beta")
+pg <- c(paste0("log_", pg_name[1]), paste0("log_", pg_name[2]))
+
+var1_vals <- seq(exp(p0[[pg[1]]]) - delta_list$delta_minus_list[[pg[1]]], exp(p0[[pg[1]]]) + delta_list$delta_plus_list[[pg[1]]], length.out=n_grid)
+var2_vals <- seq(exp(p0[[pg[2]]]) - delta_list$delta_minus_list[[pg[2]]], exp(p0[[pg[2]]]) + delta_list$delta_plus_list[[pg[2]]], length.out=n_grid)
+sofun()
+nll_matrix_full <- matrix(NA, nrow=n_grid, ncol=n_grid)
+nll_max_grad_matrix <- array(NA, dim = c(n_grid, n_grid))
+k <- 0
+par_est <- list()
+for (i in 1:length(var1_vals)) {
+    for (j in 1:length(var2_vals)) {
+        k <- k + 1
+        var1_val <- var1_vals[i]
+        var2_val <- var2_vals[j]
+        
+        model <- create_RmA_model(p = p0, x0 = x0_bar, P0 = P0)
+
+        params <- list(
+                log_K = p0$log_K)
+
+        params[[pg[1]]] <- log(var1_val)
+        params[[pg[2]]] <- log(var2_val)
+
+        do.call(model$setParameter, params)
+
+        fit <- model$estimate(df, method = "laplace",
+                    ode.timestep = dt,
+                    ode.solver = "rk4",
+                    silent = TRUE,
+                    control = list(trace = 0))
+
+        nll_value <- fit$nll
+        nll__max_grad <- max(fit$nll.gradient)
+        par_est[[k]] <- fit$par.fixed
+
+
+        
+
+        nll_matrix_full[i,j] <- nll_value
+        nll_max_grad_matrix[i,j] <- nll__max_grad
+        par_est[[k]] <- fit$par.fixed
+        message(sprintf("%s=%.2f, %s=%.2f, NLL=%.2f", pg_name[1], var1_val, pg_name[2], var2_val, nll_value))
     }
+}   
+
+# Plot likelihood surface
+i <- which(nll_matrix_full == min(nll_matrix_full), arr.ind = TRUE)
+# clip extreme values for better plotting
+nll_matrix_full_clip <- nll_matrix_full
+threshold <- min(nll_matrix_full) + 400
+nll_matrix_full_clip[nll_matrix_full > threshold] <- threshold
+
+pdf(paste0("figures/RmA_likelihood_profile_full_2D_", pg_name[1], "_", pg_name[2], ".pdf"), width = 8, height = 6)
+filled.contour(
+  var1_vals, var2_vals, nll_matrix_full_clip,
+  xlab = pg_name[1],
+  ylab = pg_name[2],
+  main = paste0("Likelihood surface, in the ", pg_name[2], " vs. ", pg_name[1], " plane"),
+
+  # ---- Color bar label ----
+  key.title = title(main = "NLL"),
+
+  plot.axes = {
+    axis(1); axis(2)
+
+    # True value
+    points(exp(p0[[pg[1]]]), exp(p0[[pg[2]]]),
+           pch = 19, cex = 1.5, col = "green")
+
+    # Optimal (minimum NLL)
+    points(var1_vals[i[1]], var2_vals[i[2]],
+           pch = 1, col = "black", cex = 2, lwd = 3)
+
+    # ---- Legend ----
+    legend("topright",
+           legend = c("True value", "Optimal (MLE)"),
+           pch = c(19, 1),
+           col = c("green", "black"),
+           pt.cex = c(1.2, 1.5),
+           lwd = c(NA, NA),
+           bg = "white")
+  }
+)
+dev.off()
+
+
+
+
+
+filled.contour(var1_vals, var2_vals, log10(abs(nll_max_grad_matrix)),
+xlab = pg_name[1],
+ylab = pg_name[2],
+main = "Max gradient surface (log10)",
+plot.axes = {
+    axis(1); axis(2)
+    points(exp(p0[[pg[1]]]), exp(p0[[pg[2]]]),
+        pch = 19, cex = 1.5, col = "green")
+    points(var1_vals[i[1]], var2_vals[i[2]], pch = 1, col = "black", cex = 2, lwd = 3)       
 }
+)
+log_mu_est <- sapply(par_est, function(p) p["log_beta"])
+
+filled.contour(var1_vals, var2_vals, matrix(exp(log_mu_est), nrow=n_grid, ncol=n_grid, byrow = TRUE),
+xlab = pg_name[1],
+ylab = pg_name[2],
+main = "Estimated log_mu surface",
+plot.axes = {
+    axis(1); axis(2)
+    points(exp(p0[[pg[1]]]), exp(p0[[pg[2]]]),
+        pch = 19, cex = 1.5, col = "green")
+    points(var1_vals[i[1]], var2_vals[i[2]], pch = 1, col = "black", cex = 2, lwd = 3)       
+}
+)
+
+log_sN_est <- sapply(par_est, function(p) p["log_sN"])
+filled.contour(var1_vals, var2_vals, matrix(exp(log_sN_est), nrow=n_grid, ncol=n_grid, byrow = TRUE),
+xlab = pg_name[1],
+ylab = pg_name[2],
+main = "Estimated log_sN surface",
+plot.axes = {
+    axis(1); axis(2)
+    points(exp(p0[[pg[1]]]), exp(p0[[pg[2]]]),
+        pch = 19, cex = 1.5, col = "green")
+    points(var1_vals[i[1]], var2_vals[i[2]], pch = 1, col = "black", cex = 2, lwd = 3)       
+}
+)

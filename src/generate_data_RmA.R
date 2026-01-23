@@ -1,10 +1,9 @@
 ## Generate data
 
-generate_data_RmA <- function(fsim, gsim, hsim, t, x0, p0, dt, N) {
+generate_data_RmA <- function(fsim, gsim, hsim, t, x0, p0, dt, N, tsample=1) {
 
     # Gaussian observations
     n <- length(t)
-    tsample <- 1 # 5 
     iobs <- round(seq(1,n,tsample/dt))
 
     # State and observation dimension length
