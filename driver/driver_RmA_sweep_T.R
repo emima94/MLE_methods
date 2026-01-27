@@ -37,13 +37,14 @@ p0 <- list(
 
 sofun()
 x0_bar = c(0.5, 0.5)
-P0 <- diag(c(0.01,0.01))
+P0 <- diag(c(0.001,0.001))
 x0 <- log(matrix(rnorm(N * length(x0_bar), x0_bar, diag(sqrt(P0))), nrow=N, ncol=length(x0_bar)))
 
 model <- create_RmA_model(p = p0, x0 = x0_bar, P0 = P0)
 model$setParameter(
-    log_mu = p0$log_mu
-#    log_K = p0$log_K
+    log_r = p0$log_r,
+#    log_mu = p0$log_mu,
+    log_K = p0$log_K
 )
 
 par_names <- rownames(model$getParameters(type = "free"))
@@ -52,19 +53,19 @@ par_names
 
 # fit to each dataset with each method
 methods = c("ekf", "laplace", "laplace.thygesen")
-
+#methods = c("ekf", "laplace")
 # Number of datasets to simulate
-N <- 5
+N <- 20
 
 # Observation frequency
-tsample = 0.1
+tsample = 0.2
 
 # Time step size
 dt <- 0.1
 
 
 var_name <- "T"
-T_vals <- c(200, 800)
+T_vals <- c(200, 800, 1600)
 #T_vals <- c(100, 200)
 fit_T <- vector("list", length(T_vals))
 names(fit_T) <- paste0(var_name, "_", 1:length(T_vals))
@@ -82,11 +83,24 @@ for (i in 1:length(T_vals)) {
                                             t, Ysim, iobs, dt, N, df_fun = NULL)
 }
 
+for (i in 1:length(T_vals)) {
+    for (m in methods) {
+        for (j in 1:N) {
+            # print a newline
+            cat("\n")
+            message("Fit results for T =", T_vals[i], ", method =", m, ", dataset =", j)
+            print(fit_T[[i]][[m]][[j]]$fit)
+        }
+    }
+}
+
+fit_T[[1]][["ekf"]][[1]]$fit
+
 # Summarize fits
 metric_names <- c("coverage", "bias", "rmse")
 fit_summary_T <- vector("list", length(T_vals))
 names(fit_summary_T) <- names(fit_T)
-
+sofun()
 for (i in 1:length(T_vals)) {
     T <- T_vals[i]
     fit <- fit_T[[i]]

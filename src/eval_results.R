@@ -161,6 +161,8 @@ create_parameter_estimation_plots <- function(fit_summary_var, vals, methods, va
         }
         dev.off()
     }
+
+    
 }
 
 #### Plot RMSE of parameter estimates vs sweeped variable ####

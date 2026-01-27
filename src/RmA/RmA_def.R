@@ -25,3 +25,5 @@ gY <- function(y,par=p0) with(par,gP(hi(y),par)*hd(hi(y)))
 fsim <- function(x,par=p0) c(fX(x[1],x[2],par),fY(x[1],x[2],par))
 gsim <- function(x,par=p0) diag(c(gX(x[1],par),gY(x[2],par)))
 hsim <- function(x,par=p0) exp(x[,1])  # observe N only
+
+
