@@ -5,7 +5,7 @@ data/*
 !data/.gitkeep
 
 # Ignore results files
-results/*
+results/*.rds
 !results/.gitkeep
 !results/likelihood_profiles/.gitkeep
 
