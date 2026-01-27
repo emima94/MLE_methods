@@ -355,99 +355,22 @@ out_2D_nll$nll_matrix
 replayPlot(out_2D_nll$plt_edge)
 replayPlot(out_2D_nll$plt_contour)
 
-# Now, try to estimate also log_sN and log_beta while profiling log_r and log_mu
-n_grid = 10
+N <- 1
+x0_bar = c(0.5, 0.5)
+P0 <- diag(c(0.01,0.01))
+x0 <- log(matrix(rnorm(N * length(x0_bar), x0_bar, diag(sqrt(P0))), nrow=N, ncol=length(x0_bar)))
+T <- 200
 dt <- 0.1
-sofun()
-pg_name <- c("mu", "beta")
-pg <- c(paste0("log_", pg_name[1]), paste0("log_", pg_name[2]))
+t <- seq(0,T,dt)
+tsample <- 0.2
+sim_data <- generate_data_RmA(fsim, gsim, hsim, t, x0[1,,drop=FALSE], p0, dt, N, tsample)
+Ysim <- sim_data$Ysim
+iobs <- sim_data$iobs
+df <- data.frame(t = t[iobs], Y = Ysim[[1]])
 
-var1_vals <- seq(exp(p0[[pg[1]]]) - delta_list$delta_minus_list[[pg[1]]], exp(p0[[pg[1]]]) + delta_list$delta_plus_list[[pg[1]]], length.out=n_grid)
-var2_vals <- seq(exp(p0[[pg[2]]]) - delta_list$delta_minus_list[[pg[2]]], exp(p0[[pg[2]]]) + delta_list$delta_plus_list[[pg[2]]], length.out=n_grid)
-sofun()
-nll_matrix_full <- matrix(NA, nrow=n_grid, ncol=n_grid)
-nll_max_grad_matrix <- array(NA, dim = c(n_grid, n_grid))
-k <- 0
-par_est <- list()
-for (i in 1:length(var1_vals)) {
-    for (j in 1:length(var2_vals)) {
-        k <- k + 1
-        var1_val <- var1_vals[i]
-        var2_val <- var2_vals[j]
-        
-        model <- create_RmA_model(p = p0, x0 = x0_bar, P0 = P0)
-
-        params <- list(
-                log_K = p0$log_K)
-
-        params[[pg[1]]] <- log(var1_val)
-        params[[pg[2]]] <- log(var2_val)
-
-        do.call(model$setParameter, params)
-
-        fit <- model$estimate(df, method = "laplace",
-                    ode.timestep = dt,
-                    ode.solver = "rk4",
-                    silent = TRUE,
-                    control = list(trace = 0))
-
-        nll_value <- fit$nll
-        nll__max_grad <- max(fit$nll.gradient)
-        par_est[[k]] <- fit$par.fixed
-
-
-        
-
-        nll_matrix_full[i,j] <- nll_value
-        nll_max_grad_matrix[i,j] <- nll__max_grad
-        par_est[[k]] <- fit$par.fixed
-        message(sprintf("%s=%.2f, %s=%.2f, NLL=%.2f", pg_name[1], var1_val, pg_name[2], var2_val, nll_value))
-    }
-}   
-
-# Plot likelihood surface
-i <- which(nll_matrix_full == min(nll_matrix_full), arr.ind = TRUE)
-# clip extreme values for better plotting
-nll_matrix_full_clip <- nll_matrix_full
-threshold <- min(nll_matrix_full) + 400
-nll_matrix_full_clip[nll_matrix_full > threshold] <- threshold
-
-pdf(paste0("figures/RmA_likelihood_profile_full_2D_", pg_name[1], "_", pg_name[2], ".pdf"), width = 8, height = 6)
-filled.contour(
-  var1_vals, var2_vals, nll_matrix_full_clip,
-  xlab = pg_name[1],
-  ylab = pg_name[2],
-  main = paste0("Likelihood surface, in the ", pg_name[2], " vs. ", pg_name[1], " plane"),
-
-  # ---- Color bar label ----
-  key.title = title(main = "NLL"),
-
-  plot.axes = {
-    axis(1); axis(2)
-
-    # True value
-    points(exp(p0[[pg[1]]]), exp(p0[[pg[2]]]),
-           pch = 19, cex = 1.5, col = "green")
-
-    # Optimal (minimum NLL)
-    points(var1_vals[i[1]], var2_vals[i[2]],
-           pch = 1, col = "black", cex = 2, lwd = 3)
-
-    # ---- Legend ----
-    legend("topright",
-           legend = c("True value", "Optimal (MLE)"),
-           pch = c(19, 1),
-           col = c("green", "black"),
-           pt.cex = c(1.2, 1.5),
-           lwd = c(NA, NA),
-           bg = "white")
-  }
-)
-dev.off()
-
-
-
-
+model <- create_RmA_model(p = p0, x0 = x0_bar, P0 = P0)
+fit <- model$estimate(
+    df)
 
 filled.contour(var1_vals, var2_vals, log10(abs(nll_max_grad_matrix)),
 xlab = pg_name[1],
