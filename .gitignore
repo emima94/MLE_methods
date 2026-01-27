@@ -7,6 +7,7 @@ data/*
 # Ignore results files
 results/*
 !results/.gitkeep
+!results/likelihood_profiles/.gitkeep
 
 # Ignore figures
 figures/*
