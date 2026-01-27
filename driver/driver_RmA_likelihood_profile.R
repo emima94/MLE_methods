@@ -80,12 +80,12 @@ pg_name_list <- list(
 # Methods to profile
 method_list <- c("ekf", "laplace")
 
-# Test ekf only (to make it work..)
-pg_name_list <- list(
-    c("r", "beta"),
-    c("mu", "beta")
-)
-method_list <- c("ekf")
+# # Test ekf only (to make it work..)
+# pg_name_list <- list(
+#     c("r", "beta"),
+#     c("mu", "beta")
+# )
+# method_list <- c("ekf")
 
 
 for (method in method_list) {
