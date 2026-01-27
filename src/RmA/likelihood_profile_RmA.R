@@ -147,7 +147,7 @@ likelihood_profile_estimate_2D_RmA <- function(df, method, pg_name, delta_list, 
 
             if (!(is.null(fit))) {
                 nll_value <- fit$nll
-                nll__max_grad <- max(fit$nll.gradient)
+                nll__max_grad <- max(fit$nll.gradient, na.rm = TRUE)
                 par_est[[k]] <- fit$par.fixed
 
 
@@ -168,10 +168,10 @@ likelihood_profile_estimate_2D_RmA <- function(df, method, pg_name, delta_list, 
     }   
 
     # Plot likelihood surface
-    i <- which(nll_matrix_full == min(nll_matrix_full), arr.ind = TRUE)
+    i <- which(nll_matrix_full == min(nll_matrix_full, na.rm = TRUE), arr.ind = TRUE)
     # clip extreme values for better plotting
     nll_matrix_full_clip <- nll_matrix_full
-    threshold <- min(nll_matrix_full) + 400
+    threshold <- min(nll_matrix_full, na.rm = TRUE) + 400
     nll_matrix_full_clip[nll_matrix_full > threshold] <- threshold
 
     if (save_fig) {
@@ -180,7 +180,7 @@ likelihood_profile_estimate_2D_RmA <- function(df, method, pg_name, delta_list, 
         var1_vals, var2_vals, nll_matrix_full_clip,
         xlab = pg_name[1],
         ylab = pg_name[2],
-        main = paste0("Likelihood surface, in the ", pg_name[2], " vs. ", pg_name[1], " plane"),
+        main = paste0("Likelihood surface, in the ", pg_name[2], " vs. ", pg_name[1], " plane, ", method),
 
         # ---- Color bar label ----
         key.title = title(main = "NLL"),

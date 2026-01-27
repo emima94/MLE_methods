@@ -58,7 +58,8 @@ delta_list <- list(delta_plus_list = delta_plus_list, delta_minus_list = delta_m
 # Construct the dataset
 N <- 1
 x0_bar = c(0.5, 0.5)
-P0 <- diag(c(0.01,0.01))
+#P0 <- diag(c(0.01,0.01))
+P0 <- diag(c(0.001,0.001))
 x0 <- log(matrix(rnorm(N * length(x0_bar), x0_bar, diag(sqrt(P0))), nrow=N, ncol=length(x0_bar)))
 T <- 200
 dt <- 0.1
@@ -79,6 +80,14 @@ pg_name_list <- list(
 # Methods to profile
 method_list <- c("ekf", "laplace")
 
+# Test ekf only (to make it work..)
+pg_name_list <- list(
+    c("r", "beta"),
+    c("mu", "beta")
+)
+method_list <- c("ekf")
+
+
 for (method in method_list) {
     for (pg_name in pg_name_list) {
         cat(sprintf("Profiling %s using %s method\n", paste(pg_name, collapse=", "), method))
@@ -98,6 +107,30 @@ for (method in method_list) {
     }
 }
 
+files <- c("results/likelihood_profiles/RmA_likelihood_profile_full_2D_ekf_r_mu.rds",
+           "results/likelihood_profiles/RmA_likelihood_profile_full_2D_ekf_r_beta.rds",
+           "results/likelihood_profiles/RmA_likelihood_profile_full_2D_ekf_mu_beta.rds"
+)
 
-
-
+pg_names_list <- list(
+    c("r", "mu"),
+    c("r", "beta"),
+    c("mu", "beta")
+)
+for (i in 1:length(files)) {
+    out <- readRDS(files[i])
+    pg_name <- pg_names_list[[i]]
+    plot_likelihood_profile(
+        pg_name = pg_name,
+        var1_vals = out$var1_vals,
+        var2_vals = out$var2_vals,
+        nll_matrix_full = out$nll_matrix_full,
+        p0 = p0,
+        df = df,
+        dt = dt,
+        x0_bar = x0_bar,
+        P0 = P0,
+        method = "ekf",
+        save_fig=TRUE
+    )
+}
