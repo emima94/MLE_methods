@@ -37,7 +37,7 @@ p0 <- list(
 
 sofun()
 # Number of datasets to simulate
-N <- 100
+N <- 3
 
 x0_bar = log(c(0.5, 0.5))
 P0 <- diag(c(0.001,0.001))
@@ -67,12 +67,19 @@ dt <- 0.1
 
 
 var_name <- "T"
-T_vals <- c(100, 200, 400, 800, 1600, 2400)
-#T_vals <- c(100, 200)
+#T_vals <- c(100, 200, 400, 800, 1600, 2400)
+T_vals <- c(100, 200)
 fit_T <- vector("list", length(T_vals))
 names(fit_T) <- paste0(var_name, "_", 1:length(T_vals))
-n_clusters <- 8
+n_clusters <- 4
 for (i in 1:length(T_vals)) {
+
+    # Create output directory
+    out_dir <- file.path("results", paste0("driver_RmA_sweep_",var_name), paste0(var_name, "_", T_vals[i]))
+    if (!dir.exists(out_dir)) {
+        dir.create(out_dir, recursive = TRUE)
+    }
+
     T <- T_vals[i]
 
     message("Fitting for T = ", T, sep="")
@@ -81,11 +88,12 @@ for (i in 1:length(T_vals)) {
     sim_data <- generate_data_RmA(fsim, gsim, hsim, t, x0, p0, dt, N, tsample)
     Ysim <- sim_data$Ysim
     iobs <- sim_data$iobs
-    fit_T[[i]] <- fit_model(methods, model, 
+    fit_model_par(n_clusters, out_dir, methods, model, 
                                             t, Ysim, iobs, dt, N, df_fun = NULL)
 }
 
-saveRDS(fit_T, file = "results/driver_RmA_sweep_T_fit_T.rds")
+
+#saveRDS(fit_T, file = "results/driver_RmA_sweep_T_fit_T.rds")
 
 # # Sweep with model in N and P space
 # sofun()
@@ -125,56 +133,3 @@ saveRDS(fit_T, file = "results/driver_RmA_sweep_T_fit_T.rds")
 #                                             t, Ysim, iobs, dt, N, df_fun = NULL)
 # }
 
-
-# Summarize fits
-metric_names <- c("coverage", "bias", "rmse")
-fit_summary_T <- vector("list", length(T_vals))
-names(fit_summary_T) <- names(fit_T)
-sofun()
-for (i in 1:length(T_vals)) {
-    T <- T_vals[i]
-    fit <- fit_T[[i]]
-    message("Computing summary for T = ", T, sep="")
-    fit_summary <- compute_fit_summary(fit, p0, methods, n_par, par_names, metric_names)
-    
-    fit_summary_T[[i]] <- fit_summary
-}
-fit_summary_T
-sofun()
-# Computation time vs T_vals #
-null_count <- create_computation_time_plots(fit_T, T_vals, methods, "T", "RmA")
-null_count  
-
-# Parameter estimation distributions #
-sofun()
-xlims = list(
-            log_r = c(-1,1),
-            log_K = c(-1,1),
-            log_beta = c(-2,2),
-            log_mu = c(-2,2),
-            log_sN = c(-16,2)
-)
-create_parameter_estimation_plots(fit_summary_T, T_vals, methods, 
-                        "T", "RmA", par_names, p0, xlims, var_name_title =  "T", var_title_func = function(x) x
-                                 )
-
-
-# Coverage and RMSE plots # 
-create_perf_metric_plot(fit_summary_T, T_vals, methods, 
-                        "T", "RmA", par_names, "coverage"
-                                 )
-
-create_perf_metric_plot(fit_summary_T, T_vals, methods, 
-                        "T", "RmA", par_names, "rmse"
-                                 )
-
-# Likelihood distribution plots
-sofun()
-create_likelihood_histograms(fit_T, T_vals, methods, 
-                        "T", NA, "RmA", "T", var_title_func = function(x) x
-                                 )
-# True parameters
-theta_true <- sapply(par_names, function(pn) p0[[pn]])
-create_likelihood_histograms(fit_T, T_vals, methods, 
-                        "T", theta_true, "RmA", "T", var_title_func = function(x) x,
-                                 plot_dev = TRUE)

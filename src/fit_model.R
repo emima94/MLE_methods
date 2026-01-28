@@ -46,29 +46,22 @@ fit_model <- function(methods, model, t, Ysim, iobs, dt, N, df_fun = NULL) {
   return(fit)
 }
 
+# New Fit model in parallel
+fit_model_par <- function(n_workers, out_dir, methods, model, t, Ysim, iobs, dt, N, df_fun = NULL) {
 
-# Fit model in parallel
-fit_model_par <- function(n_clusters, methods, model, t, Ysim, iobs, dt, N, df_fun = NULL) {
-
-  cl <- makeCluster(n_clusters)
-
-  # Export functions and variables to cluster
-  clusterExport(
-      cl,
-      varlist = c("model", "methods", "t", "Ysim", "iobs", "dt", "N", "df_fun"),
-      envir = environment()
-  )
-
-  fit_par <- vector("list", length(methods))
-  names(fit_par) <- methods
   for (m in methods) {
       message("Fitting method: ", m)
-      
-      clusterExport(cl, varlist = c("m"), envir = environment())
-
-      fit_sub <- parLapply(cl, 1:N, function(i) {
-        
   
+      cl <- makeCluster(n_workers)
+      
+      clusterExport(
+        cl,
+        varlist = c("model", "m", "t", "Ysim", "iobs", "dt", "N", "df_fun", "out_dir"),
+        envir = environment()
+      )
+
+      parLapply(cl, seq_len(N), function(i) {
+        
           if (is.null(df_fun)) {
           # Default data frame
           df <- data.frame(
@@ -93,16 +86,15 @@ fit_model_par <- function(n_clusters, methods, model, t, Ysim, iobs, dt, N, df_f
 
         #res$nll_funcs <- model$getLikelihood()
         
-        list(
+        out <- list(
           fit = res,
           model = model,
           time = timing["elapsed"]
         )
+        saveRDS(out, file.path(out_dir, sprintf("%s_%04d.rds", m, i)))
+        return(NULL)
       })
-      fit_par[[m]] <- fit_sub
+      stopCluster(cl)
   }
-
-  stopCluster(cl)
-
-  return(fit_par)
 }
+

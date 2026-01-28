@@ -56,16 +56,15 @@ cl <- makeCluster(n_workers)
 
 clusterExport(
   cl,
-  varlist = c("alpha", "beta", "task_fun"),
+  varlist = c("alpha", "beta", "task_fun", "out_"),
   envir = environment()
 )
 
 t_par <- system.time({
   parLapply(
     cl,
-    X = seq_len(n_tasks),
-    fun = function(i) {
-      Yi <- Ysim[[i]]
+    Ysim,
+    fun = function(Yi) {
       res <- task_fun(Yi, alpha, beta)
       saveRDS(res, file.path(out_dir, sprintf("par_%03d.rds", i)))
       NULL
@@ -75,29 +74,6 @@ t_par <- system.time({
 
 stopCluster(cl)
 
-## ================================
-## 3. future (multisession)
-## ================================
-
-cat("Running future.apply...\n")
-
-options(future.globals.maxSize = 2 * 1024^3)
-plan(multisession, workers = n_workers)
-
-t_fut <- system.time({
-  future_lapply(
-    seq_len(n_tasks),
-    function(i) {
-      Yi <- Ysim[[i]]
-      res <- task_fun(Yi, alpha, beta)
-      saveRDS(res, file.path(out_dir, sprintf("fut_%03d.rds", i)))
-      NULL
-    },
-    future.seed = TRUE
-  )
-})
-
-plan(sequential)
 
 ## ================================
 ## Summary
@@ -105,8 +81,7 @@ plan(sequential)
 
 summary <- rbind(
   sequential = t_seq,
-  parallel   = t_par,
-  future     = t_fut
+  parallel   = t_par
 )
 
 print(summary)

@@ -11,24 +11,31 @@ library(future.apply)
 
 ## ---- Configuration ----
 
-n_workers <- 4
-n_tasks   <- 100
+n_workers <- 8
+n_tasks   <- 1000
 n_obs     <- 5e4        # per task
-out_dir   <- "bench_results"
+out_dir   <- "results/bench_results"
 
 dir.create(out_dir, showWarnings = FALSE)
 
-Sys.setenv(
-  OMP_NUM_THREADS = 1,
-  OPENBLAS_NUM_THREADS = 1,
-  MKL_NUM_THREADS = 1
-)
+# Sys.setenv(
+#   OMP_NUM_THREADS = 1,
+#   OPENBLAS_NUM_THREADS = 1,
+#   MKL_NUM_THREADS = 1
+# )
 
 ## ---- Shared data (large, master-only) ----
 
 set.seed(1)
 Ysim <- replicate(n_tasks, rnorm(n_obs), simplify = FALSE)
+index <- seq_len(n_tasks)
 
+task_list <- lapply(seq_along(Ysim), function(i) {
+  list(
+    data  = Ysim[[i]],  # slice of the data
+    index = i            # for naming output files
+  )
+})
 alpha <- 0.3
 beta  <- 1.2
 
@@ -58,17 +65,16 @@ cl <- makeCluster(n_workers)
 
 clusterExport(
   cl,
-  varlist = c("alpha", "beta", "task_fun"),
+  varlist = c("alpha", "beta", "task_fun","out_dir","n_tasks","Ysim"),
   envir = environment()
 )
 
 t_par <- system.time({
   parLapply(
     cl,
-    X = seq_len(n_tasks),
+    seq_len(n_tasks),
     fun = function(i) {
-      Yi <- Ysim[[i]]
-      res <- task_fun(Yi, alpha, beta)
+      res <- task_fun(Ysim[[i]], alpha, beta)
       saveRDS(res, file.path(out_dir, sprintf("par_%03d.rds", i)))
       NULL
     }
@@ -76,7 +82,7 @@ t_par <- system.time({
 })
 
 stopCluster(cl)
-
+t_par
 ## ================================
 ## 3. future (multisession)
 ## ================================
