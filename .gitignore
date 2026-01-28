@@ -17,6 +17,9 @@ figures/*
 old/*
 !old/.gitkeep
 
+# Ignore hpc 
+hpc/*
+!hpc/.gitkeep
 
 # LateX
 
