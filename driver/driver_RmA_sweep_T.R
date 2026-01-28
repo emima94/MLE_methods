@@ -81,7 +81,7 @@ for (i in 1:length(T_vals)) {
     sim_data <- generate_data_RmA(fsim, gsim, hsim, t, x0, p0, dt, N, tsample)
     Ysim <- sim_data$Ysim
     iobs <- sim_data$iobs
-    fit_T[[i]] <- fit_model_par(n_clusters, methods, model, 
+    fit_T[[i]] <- fit_model(methods, model, 
                                             t, Ysim, iobs, dt, N, df_fun = NULL)
 }
 
