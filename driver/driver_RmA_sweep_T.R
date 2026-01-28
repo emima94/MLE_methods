@@ -37,7 +37,7 @@ p0 <- list(
 
 sofun()
 # Number of datasets to simulate
-N <- 3
+N <- 100
 
 x0_bar = log(c(0.5, 0.5))
 P0 <- diag(c(0.001,0.001))
@@ -67,8 +67,8 @@ dt <- 0.1
 
 
 var_name <- "T"
-#T_vals <- c(100, 200, 400, 800, 1600, 2400)
-T_vals <- c(100, 200)
+T_vals <- c(100, 200, 400, 800, 1600, 2400)
+#T_vals <- c(100, 200)
 fit_T <- vector("list", length(T_vals))
 names(fit_T) <- paste0(var_name, "_", 1:length(T_vals))
 n_clusters <- 4
