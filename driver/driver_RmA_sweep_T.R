@@ -37,18 +37,18 @@ p0 <- list(
 
 sofun()
 # Number of datasets to simulate
-N <- 100
+N <- 10
 
 x0_bar = log(c(0.5, 0.5))
 P0 <- diag(c(0.001,0.001))
 x0 <- matrix(rnorm(N * length(x0_bar), x0_bar, diag(sqrt(P0))), nrow=N, ncol=length(x0_bar))
 
 model <- create_RmA_model(p = p0, x0 = x0_bar, P0 = P0)
-#model$setParameter(
-#    log_r = p0$log_r#,
+model$setParameter(
+    log_r = p0$log_r#,
 #    log_mu = p0$log_mu,
     #log_K = p0$log_K
-#)
+)
 
 par_names <- rownames(model$getParameters(type = "free"))
 n_par <- length(par_names)
@@ -65,19 +65,56 @@ tsample = 0.2
 # Time step size
 dt <- 0.1
 
+# Directory to save results
+out_dir_base <- "results/RmA_sweep_T"
+# Create output directory
+if (!dir.exists(out_dir_base)) {
+    dir.create(out_dir_base, recursive = TRUE)
+}
+# Create directory for heavy and light results
+if (!dir.exists(file.path(out_dir_base, "light"))) {
+    dir.create(file.path(out_dir_base, "light"), recursive = TRUE)
+}
+if (!dir.exists(file.path(out_dir_base, "heavy"))) {
+    dir.create(file.path(out_dir_base, "heavy"), recursive = TRUE)
+}
 
 var_name <- "T"
-T_vals <- c(100, 200, 400, 800, 1600, 2400)
+#T_vals <- c(100, 200, 400, 800, 1600, 2400)
+T_vals <- c(100, 200, 400, 800, 1600)
+
+# Save parameters and settings
+settings <- list(
+    p0 = p0,
+    n_par = n_par,
+    par_names = par_names,
+    methods = methods,
+    N = N,
+    x0_bar = x0_bar,
+    x0 = x0,
+    P0 = P0,
+    dt = dt,
+    tsample = tsample,
+    T_vals = T_vals,
+    var_name = var_name
+)
+
+saveRDS(settings, file = file.path(out_dir_base, paste0(var_name, "_settings.rds")))
+
 #T_vals <- c(100, 200)
-fit_T <- vector("list", length(T_vals))
-names(fit_T) <- paste0(var_name, "_", 1:length(T_vals))
 n_clusters <- 4
 for (i in 1:length(T_vals)) {
 
     # Create output directory
-    out_dir <- file.path("results", paste0("driver_RmA_sweep_",var_name), paste0(var_name, "_", T_vals[i]))
-    if (!dir.exists(out_dir)) {
-        dir.create(out_dir, recursive = TRUE)
+    out_dir <- list(
+        light = file.path(out_dir_base, "light", paste0(var_name, "_", T_vals[i])),
+        heavy = file.path(out_dir_base, "heavy", paste0(var_name, "_", T_vals[i]))
+    )
+    if (!dir.exists(out_dir$light)) {
+        dir.create(out_dir$light, recursive = TRUE)
+    }
+    if (!dir.exists(out_dir$heavy)) {
+        dir.create(out_dir$heavy, recursive = TRUE)
     }
 
     T <- T_vals[i]

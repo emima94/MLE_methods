@@ -5,9 +5,11 @@ data/*
 !data/.gitkeep
 
 # Ignore results files
-results/**/*.rds
+#results/**/*.rds
+results/*
 !results/.gitkeep
-!results/likelihood_profiles/.gitkeep
+#!results/likelihood_profiles/.gitkeep
+
 
 # Ignore figures
 figures/*

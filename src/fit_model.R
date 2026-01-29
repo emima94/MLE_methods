@@ -51,12 +51,18 @@ fit_model_par <- function(n_workers, out_dir, methods, model, t, Ysim, iobs, dt,
 
   for (m in methods) {
       message("Fitting method: ", m)
+
+      # Create method subfolder for results
+      out_dir_method <- file.path(out_dir, m)
+      if (!dir.exists(out_dir_method)) {
+          dir.create(out_dir_method, recursive = TRUE)
+      }
   
       cl <- makeCluster(n_workers)
       
       clusterExport(
         cl,
-        varlist = c("model", "m", "t", "Ysim", "iobs", "dt", "N", "df_fun", "out_dir"),
+        varlist = c("model", "m", "t", "Ysim", "iobs", "dt", "N", "df_fun", "out_dir_method"),
         envir = environment()
       )
 
@@ -91,7 +97,18 @@ fit_model_par <- function(n_workers, out_dir, methods, model, t, Ysim, iobs, dt,
           model = model,
           time = timing["elapsed"]
         )
-        saveRDS(out, file.path(out_dir, sprintf("%s_%04d.rds", m, i)))
+        out_light <- list(
+          par.fixed = res$par.fixed,
+          nll = res$nll,
+          sd.fixed = res$sd.fixed,
+          converged = res$converged,
+          nll.gradient = res$nll.gradient,
+          opt = res$private$opt,
+          time = timing["elapsed"]
+        )
+
+        saveRDS(out, file.path(out_dir_method, sprintf("%s_%04d.rds", m, i)))
+        saveRDS(out_light, file.path(out_dir_method, sprintf("%s_%04d_light.rds", m, i)))
         return(NULL)
       })
       stopCluster(cl)
