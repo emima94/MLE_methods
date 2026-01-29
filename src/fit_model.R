@@ -53,10 +53,18 @@ fit_model_par <- function(n_workers, out_dir, methods, model, t, Ysim, iobs, dt,
       message("Fitting method: ", m)
 
       # Create method subfolder for results
-      out_dir_method <- file.path(out_dir, m)
-      if (!dir.exists(out_dir_method)) {
-          dir.create(out_dir_method, recursive = TRUE)
+      out_dir_method_light <- file.path(out_dir$light, m)
+      if (!dir.exists(out_dir_method_light)) {
+          dir.create(out_dir_method_light, recursive = TRUE)
       }
+      out_dir_method_heavy <- file.path(out_dir$heavy, m)
+      if (!dir.exists(out_dir_method_heavy)) {
+          dir.create(out_dir_method_heavy, recursive = TRUE)
+      }
+      out_dir_method <- list(
+        light = out_dir_method_light,
+        heavy = out_dir_method_heavy
+      )
   
       cl <- makeCluster(n_workers)
       
@@ -107,8 +115,8 @@ fit_model_par <- function(n_workers, out_dir, methods, model, t, Ysim, iobs, dt,
           time = timing["elapsed"]
         )
 
-        saveRDS(out, file.path(out_dir_method, sprintf("%s_%04d.rds", m, i)))
-        saveRDS(out_light, file.path(out_dir_method, sprintf("%s_%04d_light.rds", m, i)))
+        saveRDS(out, file.path(out_dir_method$heavy, sprintf("%s_%04d.rds", m, i)))
+        saveRDS(out_light, file.path(out_dir_method$light, sprintf("%s_%04d.rds", m, i)))
         return(NULL)
       })
       stopCluster(cl)

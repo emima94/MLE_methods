@@ -81,7 +81,7 @@ if (!dir.exists(file.path(out_dir_base, "heavy"))) {
 
 var_name <- "T"
 #T_vals <- c(100, 200, 400, 800, 1600, 2400)
-T_vals <- c(100, 200, 400, 800, 1600)
+T_vals <- c(50, 100, 400, 1600)
 
 # Save parameters and settings
 settings <- list(
