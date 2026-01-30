@@ -24,10 +24,13 @@ generate_data_RmA <- function(fsim, gsim, hsim, t, x0, p0, dt, N, tsample=1) {
                     t,x0[i,],B=B)
 
         Xsim[[i]] = sim$X
-        Ysim[[i]] = matrix(pmax(0,
-                       hsim(Xsim[[i]][iobs,], p0) 
-                       + rnorm(length(iobs),0,p0$obs_sd)), 
-                       nrow=length(iobs), ncol=ny)
+        # Ysim[[i]] = matrix(pmax(0,
+        #                hsim(Xsim[[i]][iobs,], p0) 
+        #                + rnorm(length(iobs),0,p0$obs_sd)), 
+        #                nrow=length(iobs), ncol=ny)
+        Ysim[[i]] = matrix(hsim(Xsim[[i]][iobs,], p0) 
+                       + rnorm(length(iobs),0,p0$obs_sd), 
+                       nrow=length(iobs), ncol=ny)               
         # Poisson observations
         # Nsim[[i]] = exp(Xsim[[i]][,1])
         # vN <- 10
@@ -38,10 +41,10 @@ generate_data_RmA <- function(fsim, gsim, hsim, t, x0, p0, dt, N, tsample=1) {
     }
 
     # Are any observations negative?
-    is_Y_neg <- any(sapply(Ysim, function(y) any(y < 0)))
-    if (is_Y_neg) {
-        warning("Some generated observations are negative!")
-    }
+    # is_Y_neg <- any(sapply(Ysim, function(y) any(y < 0)))
+    # if (is_Y_neg) {
+    #     #warning("Some generated observations are negative!")
+    # }
 
 
     return(list(Xsim=Xsim, Ysim=Ysim, iobs=iobs))

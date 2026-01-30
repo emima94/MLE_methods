@@ -23,32 +23,78 @@ sofun <- function() {
 }
 sofun()
 
+log_transform_state_vector <- c(TRUE, TRUE, FALSE, FALSE)
+obs_partial_vector <- c(TRUE, FALSE, TRUE, FALSE)
+
+# Load parameter index from HPC arguments
+i <- as.integer(commandArgs(trailingOnly=TRUE)[1])
+
+### Inputs ###
+log_transform_state = log_transform_state_vector[i]
+obs_partial = obs_partial_vector[i]
+###
+
+
+
+# Default settings
 p0 <- list(
-    log_r = log(1.0),
-    log_K = log(1.0),
+    r = 1.0,
+    K = 1.0,
     epsilon = 3.0,
-    log_beta = log(3.0),
+    beta = 3.0,
     Cmax = 1.0,
-    log_mu = log(1.0),
-    log_sN = log(0.2), #0.1
-    log_sP = log(0.1),  #0.1
-    obs_sd = 0.05
+    mu = 1.0,
+    sN = 0.2, #0.1
+    sP = 0.1,  #0.1
+    obs_sd = 0.005
 )
 
-sofun()
+# RmA def, no par log transforms, no state log transforms
+fN_1 <- function(N,P,par) {with(par, {
+    r * N * (1 - N / K) - beta * N * P / (1 + beta * N / Cmax)
+})}
+fP_1 <- function(N,P,par) {with(par, {
+    epsilon * beta * N * P / (1 + beta * N / Cmax) - mu * P
+})}
+gN_1 <- function(N,par) {with(par, {
+    sN * N
+})}
+gP_1 <- function(P,par) {with(par, {
+    sP * P
+})}
+
+# Simulation functions
+fNPsim <- function(x,par=p0) c(fN_1(x[1],x[2],par),fP_1(x[1],x[2],par))
+gNPsim <- function(x,par=p0) diag(c(gN_1(x[1],par),gP_1(x[2],par)))
+if (obs_partial) {
+    hNPsim <- function(x,par=p0) x[,1]  # observe N only
+} else {
+    hNPsim <- function(x,par=p0) x      # observe both N and P
+}
+
+# Dataframe function for fitting
+if (obs_partial) {
+    df_fun <- NULL
+} else {
+    df_fun <- function(t, Ysim_i, iobs) {
+        df <- data.frame(t = t[iobs], 
+                        Y1 = Ysim_i[,1], 
+                        Y2 = Ysim_i[,2])
+        return(df)
+    }
+}
+
 # Number of datasets to simulate
-N <- 10
+N <- 2
 
-x0_bar = log(c(0.5, 0.5))
-P0 <- diag(c(0.001,0.001))
-x0 <- matrix(rnorm(N * length(x0_bar), x0_bar, diag(sqrt(P0))), nrow=N, ncol=length(x0_bar))
+# Initial state for simulation and model
+x0_model <- c(0.5, 0.5)
+P0_model <- diag(c(1,1)*0.1)
+x0_sim <- matrix(rep(c(0.5, 0.5), each=N), nrow=N, ncol=2)
 
-model <- create_RmA_model(p = p0, x0 = x0_bar, P0 = P0)
-model$setParameter(
-    log_r = p0$log_r#,
-#    log_mu = p0$log_mu,
-    #log_K = p0$log_K
-)
+log_transform_par = FALSE
+
+model <- create_RmA_model_general(p = p0, x0 = x0_model, P0 = P0_model, log_transform_par = log_transform_par, log_transform_state = log_transform_state, obs_partial = obs_partial)
 
 par_names <- rownames(model$getParameters(type = "free"))
 n_par <- length(par_names)
@@ -58,7 +104,6 @@ par_names
 methods = c("ekf", "laplace", "laplace.thygesen")
 #methods = c("ekf", "laplace")
 
-
 # Observation frequency
 tsample = 0.2
 
@@ -66,7 +111,8 @@ tsample = 0.2
 dt <- 0.1
 
 # Directory to save results
-out_dir_base <- "results/RmA_sweep_T"
+date_time <- format(Sys.time(), "%Y%m%d_%H%M%S")
+out_dir_base <- file.path("results", paste0("RmA_model_log_state_trans_", log_transform_state, "_partial_obs_", obs_partial, "_sweep_T_", date_time))
 # Create output directory
 if (!dir.exists(out_dir_base)) {
     dir.create(out_dir_base, recursive = TRUE)
@@ -81,7 +127,7 @@ if (!dir.exists(file.path(out_dir_base, "heavy"))) {
 
 var_name <- "T"
 #T_vals <- c(100, 200, 400, 800, 1600, 2400)
-T_vals <- c(50, 100, 400, 1600)
+T_vals <- c(50, 400)
 
 # Save parameters and settings
 settings <- list(
@@ -89,10 +135,14 @@ settings <- list(
     n_par = n_par,
     par_names = par_names,
     methods = methods,
+    model = model,
+    log_transform_par = log_transform_par,
+    log_transform_state = log_transform_state,
+    obs_partial = obs_partial,
     N = N,
-    x0_bar = x0_bar,
-    x0 = x0,
-    P0 = P0,
+    x0_model = x0_model,
+    x0_sim = x0_sim,
+    P0 = P0_model,
     dt = dt,
     tsample = tsample,
     T_vals = T_vals,
@@ -100,6 +150,26 @@ settings <- list(
 )
 
 saveRDS(settings, file = file.path(out_dir_base, paste0(var_name, "_settings.rds")))
+
+# t_test <- seq(0,100,dt)
+# sim_data_test <- generate_data_RmA(fNPsim, gNPsim, hNPsim, t_test, x0_sim, p0, dt, N, tsample)
+# Ysim_test <- sim_data_test$Ysim
+# iobs_test <- sim_data_test$iobs
+# par(mfrow=c(2,1))
+# plot(t_test[iobs_test], Ysim_test[[1]][,1], type='o', col='blue')
+# plot(t_test[iobs_test], Ysim_test[[1]][,2], type='o', col='red')
+
+# df <- df_fun(t_test, Ysim_test, iobs_test)
+# df
+# fit <- model$estimate(
+#     data = df,
+#     method = "ekf",
+#     ode.solver = "rk4",
+#     ode.timestep = dt,
+#     silent = FALSE,
+#     control = list(trace = 1)
+# )
+
 
 #T_vals <- c(100, 200)
 n_clusters <- 4
@@ -122,16 +192,15 @@ for (i in 1:length(T_vals)) {
     message("Fitting for T = ", T, sep="")
     t <- seq(0,T,dt)
 
-    sim_data <- generate_data_RmA(fsim, gsim, hsim, t, x0, p0, dt, N, tsample)
+    sim_data <- generate_data_RmA(fNPsim, gNPsim, hNPsim, t, x0_sim, p0, dt, N, tsample)
     Ysim <- sim_data$Ysim
     iobs <- sim_data$iobs
     fit_model_par(n_clusters, out_dir, methods, model, 
-                                            t, Ysim, iobs, dt, N, df_fun = NULL)
+                                            t, Ysim, iobs, dt, N, df_fun = df_fun)
 }
 
-
-
-
+fit <- readRDS("results/RmA_model_log_state_trans_TRUE_partial_obs_FALSE_sweep_T_20260130_102557/light/T_400/laplace/0002.rds")
+fit
 #saveRDS(fit_T, file = "results/driver_RmA_sweep_T_fit_T.rds")
 
 # # Sweep with model in N and P space

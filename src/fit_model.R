@@ -112,11 +112,13 @@ fit_model_par <- function(n_workers, out_dir, methods, model, t, Ysim, iobs, dt,
           converged = res$converged,
           nll.gradient = res$nll.gradient,
           opt = res$private$opt,
+          time.elapsed = res$private$timer_estimation,
+          time.compile = res$private$timer_construct_adfun,
           time = timing["elapsed"]
         )
 
-        saveRDS(out, file.path(out_dir_method$heavy, sprintf("%s_%04d.rds", m, i)))
-        saveRDS(out_light, file.path(out_dir_method$light, sprintf("%s_%04d.rds", m, i)))
+        saveRDS(out, file.path(out_dir_method$heavy, sprintf("%04d.rds", i)))
+        saveRDS(out_light, file.path(out_dir_method$light, sprintf("%04d.rds", i)))
         return(NULL)
       })
       stopCluster(cl)

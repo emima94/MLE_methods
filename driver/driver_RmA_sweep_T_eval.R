@@ -22,7 +22,8 @@ sofun()
 
 # Results output directory
 #out_dir <- "results/driver_RmA_sweep_T"
-out_dir <- "hpc/results_and_figs/driver_RmA_sweep_T_260129_1017"
+#out_dir <- "hpc/results_and_figs/driver_RmA_sweep_T_260129_1017"
+out_dir <- "results/RmA_model_NP_sweep_T"
 
 # Load settings
 set <- readRDS(file.path(out_dir, "T_settings.rds"))
@@ -35,34 +36,37 @@ N <- set$N
 # Load key results for each T value for each method for each dataset
 # Read parameter function
 get_file_path <- function(T_val, method, i, out_dir) {
-    fit_file <- file.path(out_dir, paste0("T_", T_val), sprintf("%s_%04d.rds", method, i))
+    #fit_file <- file.path(out_dir, paste0("T_", T_val), sprintf("%s_%04d.rds", method, i))
+    fit_file <- file.path(out_dir, "light", paste0("T_", T_val), method, sprintf("%04d.rds", i))
     return(fit_file)
 }
 
-read_res <- function(T_val, method, i, out_dir) {
-    fit <- readRDS(get_file_path(T_val, method, i, out_dir))
+# read_res <- function(T_val, method, i, out_dir) {
+#     fit <- readRDS(get_file_path(T_val, method, i, out_dir))
 
-    res <- list(
-        par = fit$fit$par.fixed,
-        nll = fit$fit$nll,
-        nll.gradient = fit$fit$nll.gradient,
-        sd = fit$fit$sd.fixed,
-        opt = fit$fit$private$opt,
-        time = c(estimation = fit$fit$private$timer_estimation, 
-                 compile = fit$fit$private$timer_construct_adfun)
-    )
+#     res <- list(
+#         par = fit$fit$par.fixed,
+#         nll = fit$fit$nll,
+#         nll.gradient = fit$fit$nll.gradient,
+#         sd = fit$fit$sd.fixed,
+#         opt = fit$fit$private$opt,
+#         time = c(estimation = fit$fit$private$timer_estimation, 
+#                  compile = fit$fit$private$timer_construct_adfun)
+#     )
 
-    return(res)
-}
+#     return(res)
+# }
 
-N_test <- 10
+N_test <- N
 
+fit <- readRDS("results/RmA_model_NP_sweep_T/heavy/T_100/ekf/0001.rds")
+fit$fit
 # Load results into list (testing)
 res <- lapply(T_vals, function(T_val) {
     res_method <- lapply(methods, function(m) {
         message("Loading results for T = ", T_val, ", method = ", m)
         res_datasets <- lapply(1:N_test, function(i) {
-            read_res(T_val, m, i, out_dir)
+            readRDS(get_file_path(T_val, m, i, out_dir))
         })
         return(res_datasets)
     })
@@ -80,6 +84,14 @@ xlims = list(
             log_mu = c(-2,2),
             log_sN = c(-16,2)
 )
+xlims = list(
+            r = c(0.3,2.0),
+            K = c(0.3,2.0),
+            beta = c(0.1,6),
+            mu = c(0.1,3),
+            sN = c(0.01,2)
+)
+
 
 for (i in seq_along(T_vals)) {
     T_val <- T_vals[i]
@@ -136,8 +148,10 @@ for (i in seq_along(T_vals)) {
     for (i in seq_along(T_vals)) {
         T_val <- T_vals[i]
         for (m in methods) {
-            est_times <- sapply(res[[i]][[m]], function(r) r$time["estimation.elapsed"])
-            compile_times <- sapply(res[[i]][[m]], function(r) r$time["compile.elapsed"])
+            #est_times <- sapply(res[[i]][[m]], function(r) r$time["estimation.elapsed"])
+            #compile_times <- sapply(res[[i]][[m]], function(r) r$time["compile.elapsed"])
+            est_times <- sapply(res[[i]][[m]], function(r) r$time["estimation"])
+            compile_times <- sapply(res[[i]][[m]], function(r) r$time["compile"])
             est_time_mat[i, m] <- mean(est_times)
             compile_time_mat[i, m] <- mean(compile_times)
         }
