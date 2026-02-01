@@ -85,7 +85,7 @@ if (obs_partial) {
 }
 
 # Number of datasets to simulate
-N <- 2
+N <- 100
 
 # Initial state for simulation and model
 x0_model <- c(0.5, 0.5)
@@ -127,7 +127,7 @@ if (!dir.exists(file.path(out_dir_base, "heavy"))) {
 
 var_name <- "T"
 #T_vals <- c(100, 200, 400, 800, 1600, 2400)
-T_vals <- c(50, 400)
+T_vals <- c(50, 100, 200, 400)
 
 # Save parameters and settings
 settings <- list(
@@ -199,8 +199,8 @@ for (i in 1:length(T_vals)) {
                                             t, Ysim, iobs, dt, N, df_fun = df_fun)
 }
 
-fit <- readRDS("results/RmA_model_log_state_trans_TRUE_partial_obs_FALSE_sweep_T_20260130_102557/light/T_400/laplace/0002.rds")
-fit
+#fit <- readRDS("results/RmA_model_log_state_trans_TRUE_partial_obs_FALSE_sweep_T_20260130_102557/light/T_400/laplace/0002.rds")
+#fit
 #saveRDS(fit_T, file = "results/driver_RmA_sweep_T_fit_T.rds")
 
 # # Sweep with model in N and P space

@@ -23,7 +23,9 @@ sofun()
 # Results output directory
 #out_dir <- "results/driver_RmA_sweep_T"
 #out_dir <- "hpc/results_and_figs/driver_RmA_sweep_T_260129_1017"
-out_dir <- "results/RmA_model_NP_sweep_T"
+#out_dir <- "results/RmA_model_NP_sweep_T"
+out_dir <- "results/RmA_model_log_state_trans_TRUE_partial_obs_FALSE_sweep_T_20260130_102557"
+
 
 # Load settings
 set <- readRDS(file.path(out_dir, "T_settings.rds"))
@@ -32,6 +34,8 @@ methods <- set$methods
 n_par <- set$n_par
 par_names <- set$par_names
 N <- set$N
+obs_partial <- set$obs_partial
+log_transform_state <- set$log_transform_state
 
 # Load key results for each T value for each method for each dataset
 # Read parameter function
@@ -59,8 +63,6 @@ get_file_path <- function(T_val, method, i, out_dir) {
 
 N_test <- N
 
-fit <- readRDS("results/RmA_model_NP_sweep_T/heavy/T_100/ekf/0001.rds")
-fit$fit
 # Load results into list (testing)
 res <- lapply(T_vals, function(T_val) {
     res_method <- lapply(methods, function(m) {
@@ -110,7 +112,7 @@ for (i in seq_along(T_vals)) {
             p_est_mean <- mean(par_mat[, k])
             p_sd_mean <- mean(sd_mat[ ,k])
             hist(par_mat[, k], 
-                    main = paste0("T=", T_val, ", method=", m, ", param=", par_names[k]),
+                    main = paste0("T=", T_val, ", method=", m, ", param=", par_names[k], "\n obs_partial=", obs_partial, ", log_transform_state=", log_transform_state),
                     xlab = "Parameter estimate", 
                     xlim = xlims[[par_names[k]]],
                     breaks = 20)
@@ -130,12 +132,14 @@ for (i in seq_along(T_vals)) {
             T_val <- T_vals[i]
             nll_vals <- sapply(res[[i]][[m]], function(r) r$nll)
             hist(nll_vals, 
-                main = paste0("T=", T_val, ", method=", m, ", NLL"),
+                main = paste0("T=", T_val, ", method=", m, ", NLL", "\n obs_partial=", obs_partial, ", log_transform_state=", log_transform_state),
                 xlab = "Negative log-likelihood", 
                 breaks = 20)
         }
     }
 }
+
+res[[1]][[1]][[1]]$nll.gradient
 
 # Plot computation time vs T_vals
 {
@@ -150,8 +154,8 @@ for (i in seq_along(T_vals)) {
         for (m in methods) {
             #est_times <- sapply(res[[i]][[m]], function(r) r$time["estimation.elapsed"])
             #compile_times <- sapply(res[[i]][[m]], function(r) r$time["compile.elapsed"])
-            est_times <- sapply(res[[i]][[m]], function(r) r$time["estimation"])
-            compile_times <- sapply(res[[i]][[m]], function(r) r$time["compile"])
+            est_times <- sapply(res[[i]][[m]], function(r) r$time.elapsed)
+            compile_times <- sapply(res[[i]][[m]], function(r) r$time.compile)
             est_time_mat[i, m] <- mean(est_times)
             compile_time_mat[i, m] <- mean(compile_times)
         }
